@@ -120,6 +120,7 @@ label .req{color:var(--ca)}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-weight:500;display:none;z-index:70;max-width:90vw}
 .toast.err{background:var(--ca)}
+.slogo{display:none;max-width:220px;max-height:100px;width:auto;height:auto;margin:0 auto 16px}
 #loading{text-align:center;padding:60px 0;color:var(--muted)}
 
 /* Mobile cards (hidden on desktop) */
@@ -271,6 +272,7 @@ label .req{color:var(--ca)}
 <!-- Sign in -->
 <div class="screen" id="loginScreen">
   <div class="sbox">
+    <img class="slogo" id="slogo" alt="Logo">
     <h2>Handset Pre-Order Tracker</h2>
     <div class="sub2">Centralized Store Request Monitoring</div>
     <p>Sign in with your Google account to continue.</p>
@@ -320,6 +322,19 @@ function today() {
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
 function firstStatus() { return S.statuses[0] || 'Awaiting Unit'; }
+
+/* ================= Logo (shown on sign-in page too) ================= */
+const LOGO_KEY = 'hpo_logo';
+function showLogo(src) {
+  ['logo', 'slogo'].forEach(id => { const el = $(id); if (el && src) { el.src = src; el.style.display = 'block'; } });
+}
+(function loadLogo() {
+  try { const c = localStorage.getItem(LOGO_KEY); if (c) showLogo(c); } catch (e) {}
+  if (/PASTE_/.test(CONFIG.API_URL)) return;
+  fetch(CONFIG.API_URL + '?logo=1').then(r => r.json()).then(r => {
+    if (r && r.logo) { showLogo(r.logo); try { localStorage.setItem(LOGO_KEY, r.logo); } catch (e) {} }
+  }).catch(() => {});
+})();
 
 /* ================= Google Sign-In ================= */
 const AUTH = { token: '', exp: 0, profile: null, waiting: [] };
@@ -424,7 +439,7 @@ function init(d) {
   S.loaded = true;
   Object.assign(S, d);
   S.admin = !!d.user.admin;
-  if (d.logo) { $('logo').src = d.logo; $('logo').style.display = 'block'; }
+  if (d.logo) showLogo(d.logo);
 
   // Signed-in user chip
   const pic = AUTH.profile && AUTH.profile.picture;
