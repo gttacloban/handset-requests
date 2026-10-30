@@ -119,6 +119,14 @@ label .req{color:var(--ca)}
 .sbox .em{font-weight:700;color:var(--ink);word-break:break-all}
 .gbtn{display:flex;justify-content:center;min-height:44px}
 .serr{color:var(--ca);font-size:13px;margin-top:12px;min-height:18px}
+input[readonly]{background:var(--bg);cursor:default}
+.ulist{margin-top:12px;border-top:1px solid var(--line)}
+.urow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.urow .ui{flex:1;min-width:0}
+.urow .un{font-weight:700}
+.urow .ue{color:var(--muted);font-size:13px;word-break:break-all}
+.role{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--fr-bg);color:var(--fr-ink)}
+.role.admin{background:var(--fu-bg);color:var(--fu-ink)}
 .lbusy{display:none;align-items:center;justify-content:center;gap:10px;min-height:44px;color:var(--ink);font-weight:700}
 .spin{width:22px;height:22px;border:3px solid #dbe4f7;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -156,6 +164,8 @@ label .req{color:var(--ca)}
   .tags,#btnNew{display:none}
   .who{padding:3px;border-radius:50%}
   .who .txt{display:none}
+  #btnUsers{padding:8px 10px}
+  #btnUsers .txt{display:none}
 
   main{padding:12px 10px 96px}
   .kpis{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
@@ -207,6 +217,7 @@ label .req{color:var(--ca)}
         <div class="avatar" id="avatar"></div>
         <div class="txt"><div class="nm" id="whoName"></div><div class="rl" id="whoRole"></div></div>
       </button>
+      <button class="btn btn-light" id="btnUsers" onclick="openUsers()" style="display:none">👥 <span class="txt">Users</span></button>
       <button class="btn btn-primary" id="btnNew" onclick="openForm()" style="display:none">+ New Request</button>
     </div>
   </div>
@@ -262,7 +273,7 @@ label .req{color:var(--ca)}
       <div><label>Exact Color <span class="req">*</span></label><input id="f_color" list="dl_color" required></div>
       <div><label>Quantity <span class="req">*</span></label><input id="f_qty" type="number" min="1" value="1" required></div>
       <div><label>Transaction Type <span class="req">*</span></label><select id="f_type" required></select></div>
-      <div><label>Requestor / Seller <span class="req">*</span></label><select id="f_seller" required></select></div>
+      <div><label>Requestor / Seller <span class="req">*</span></label><input id="f_seller" readonly tabindex="-1"></div>
       <div class="adminonly"><label>Waitlist #</label><input id="f_wl" placeholder="Auto"><div class="hint">Leave empty to auto-number per handset + color</div></div>
       <div class="adminonly"><label>Status</label><select id="f_status"></select></div>
       <div class="full selleronly"><div class="sellernote" id="sellerNote"></div></div>
@@ -273,6 +284,22 @@ label .req{color:var(--ca)}
       <button type="submit" class="btn btn-primary" id="btnSave">Save</button>
     </div>
   </form>
+</div>
+
+<!-- Users (admin only) -->
+<div class="modal" id="usersModal" onclick="if(event.target===this)closeUsers()">
+  <div class="box">
+    <h2>Users</h2>
+    <form class="fgrid" onsubmit="addUser(event)">
+      <div><label>Gmail <span class="req">*</span></label><input id="u_email" type="email" placeholder="name@gmail.com" required></div>
+      <div><label>Name <span class="req">*</span></label><input id="u_name" placeholder="e.g. Grace" required></div>
+      <div><label>Role</label><select id="u_role"><option>Seller</option><option>Admin</option></select></div>
+      <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary" style="width:100%">+ Add user</button></div>
+    </form>
+    <div class="note">The name is used as Requestor / Seller on this person's requests.</div>
+    <div class="ulist" id="ulist"></div>
+    <div class="actions"><button type="button" class="btn btn-light" onclick="closeUsers()">Close</button></div>
+  </div>
 </div>
 
 <!-- Sign in -->
@@ -453,7 +480,7 @@ const CACHE_KEY = () => 'hpo_cache_' + String((AUTH.profile && AUTH.profile.emai
 function saveCache() {
   if (!S.loaded || !S.user) return;
   try {
-    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, rows: S.rows.filter(r => !r.pending) }));
+    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending) }));
     localStorage.setItem('hpo_last', S.user.email);
   } catch (e) {}
 }
@@ -491,9 +518,9 @@ function init(d) {
     : '👁️ <span><b>Seller</b> — you can add new requests, view and search. To edit or change status, ask the admin.</span>';
   document.querySelectorAll('.admin-col').forEach(el => el.style.display = S.admin ? '' : 'none');
 
-  // Sellers always request under their own name
-  if (S.admin) fill($('f_seller'), S.sellers, 'Select seller');
-  else { fill($('f_seller'), [d.user.name]); $('f_seller').disabled = true; }
+  // Requestor / Seller always = signed-in user's name
+  S.users = d.users || [];
+  $('btnUsers').style.display = S.admin ? '' : 'none';
 
   fill($('f_type'), S.types, 'Select type');
   fill($('f_status'), S.statuses);
@@ -637,7 +664,7 @@ function openForm(id) {
   $('f_color').value = r ? r.color : '';
   $('f_qty').value = r ? r.qty : 1;
   $('f_type').value = r ? r.type : '';
-  $('f_seller').value = S.admin ? (r ? r.seller : '') : S.user.name;
+  $('f_seller').value = r ? r.seller : S.user.name;
   $('f_wl').value = r ? r.waitlist : '';
   $('f_status').value = r ? r.status : firstStatus();
   $('f_remarks').value = r ? r.remarks : '';
@@ -673,7 +700,7 @@ function submitForm(e) {
     mobile: $('f_mobile').value.replace(/[\s\-()]/g, ''), date: $('f_date').value,
     handset: $('f_handset').value.trim(), color: $('f_color').value.trim(),
     qty: Number($('f_qty').value) || 1, type: $('f_type').value,
-    seller: S.admin ? $('f_seller').value : S.user.name,
+    seller: $('f_seller').value || S.user.name,
     waitlist: S.admin ? $('f_wl').value.trim() : '',
     status: S.admin ? $('f_status').value : firstStatus(),
     remarks: $('f_remarks').value.trim()
@@ -737,6 +764,52 @@ function removeRow(id) {
     .catch(err => { S.rows.splice(i, 0, r); render(); toast(err.message, true); });
 }
 
+/* ================= Users (admin only) ================= */
+function openUsers() {
+  if (!S.admin) return;
+  $('u_email').value = ''; $('u_name').value = ''; $('u_role').value = 'Seller';
+  renderUsers();
+  $('usersModal').classList.add('open');
+  document.body.classList.add('noscroll');
+  $('usersModal').scrollTop = 0;
+}
+function closeUsers() {
+  $('usersModal').classList.remove('open');
+  document.body.classList.remove('noscroll');
+}
+function renderUsers() {
+  const me = S.user && S.user.email;
+  $('ulist').innerHTML = (S.users || []).map(u => `
+    <div class="urow">
+      <div class="ui"><div class="un">${esc(u.name)}</div><div class="ue">${esc(u.email)}</div></div>
+      <span class="role ${u.role === 'Admin' ? 'admin' : ''}">${esc(u.role)}</span>
+      ${u.email === me ? '<span class="icon" title="You">👤</span>' : `<button class="icon" title="Remove" onclick="removeUser('${esc(u.email)}')">🗑</button>`}
+    </div>`).join('') || '<div class="empty">No users yet</div>';
+}
+function addUser(e) {
+  e.preventDefault();
+  const u = { email: $('u_email').value.trim().toLowerCase(), name: $('u_name').value.trim().replace(/\s+/g, ' '), role: $('u_role').value };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email)) return toast('Email is not valid', true);
+  if (!u.name) return toast('Name is required', true);
+  const backup = (S.users || []).slice();
+  S.users = backup.filter(x => x.email !== u.email).concat([u]);
+  renderUsers();
+  $('u_email').value = ''; $('u_name').value = '';
+  api('addUser', { user: u })
+    .then(list => { S.users = list; if (!S.sellers.includes(u.name)) S.sellers.push(u.name); renderUsers(); saveCache(); toast(u.name + ' saved'); })
+    .catch(err => { S.users = backup; renderUsers(); toast(err.message, true); });
+}
+function removeUser(email) {
+  const u = (S.users || []).find(x => x.email === email);
+  if (!u || !confirm(`Remove ${u.name} (${u.email})?\nThey will no longer be able to sign in.`)) return;
+  const backup = S.users.slice();
+  S.users = S.users.filter(x => x.email !== email);
+  renderUsers();
+  api('deleteUser', { email: email })
+    .then(list => { S.users = list; renderUsers(); saveCache(); toast(u.name + ' removed'); })
+    .catch(err => { S.users = backup; renderUsers(); toast(err.message, true); });
+}
+
 /* ================= Toast ================= */
 let tTimer;
 function toast(msg, err) {
@@ -747,7 +820,7 @@ function toast(msg, err) {
   clearTimeout(tTimer);
   tTimer = setTimeout(() => t.style.display = 'none', 3200);
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeForm(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeForm(); closeUsers(); } });
 
 /* ================= Prepare last data behind the sign-in screen ================= */
 (function preload() {
