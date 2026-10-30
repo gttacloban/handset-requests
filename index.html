@@ -19,6 +19,7 @@
   --fu:#16a34a;--fu-bg:#e7f8ee;--fu-ink:#13753a;
   --ca:#dc2626;--ca-bg:#fdecec;--ca-ink:#a11d1d;
   --ot:#64748b;--ot-bg:#eef1f5;--ot-ink:#334155;
+  --ex:#7c3aed;--ex-bg:#f3e8ff;--ex-ink:#6b21a8;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
@@ -91,6 +92,10 @@ span.st{cursor:default}
 .top li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 .top li:last-child{border-bottom:0}
 .top .u{font-weight:800;color:var(--accent)}
+.hold{display:inline-block;margin-top:4px;font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--fr-bg);color:var(--fr-ink);white-space:nowrap}
+.hold.urgent{background:var(--ca-bg);color:var(--ca-ink)}
+.hold.off{background:var(--ex-bg);color:var(--ex-ink)}
+.btn.mini{padding:5px 10px;font-size:12px;border-radius:8px}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 
 /* Request form */
@@ -251,6 +256,9 @@ input[readonly]{background:var(--bg);cursor:default}
       </section>
 
       <aside class="panel">
+        <h3>Available Units</h3>
+        <ul class="top" id="avail"></ul>
+        <div class="note" style="margin-bottom:16px">Released after the hold time ended — available for the next customer.</div>
         <h3>Most Requested (open)</h3>
         <ul class="top" id="top"></ul>
         <div class="note">Units not yet Fulfilled or Cancelled, by handset and color.</div>
@@ -345,11 +353,11 @@ const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: f
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-const CLOSED = ['Fulfilled', 'Cancelled'];
+const CLOSED = ['Fulfilled', 'Cancelled', 'Expired'];
 const TOKEN_KEY = 'hpo_id_token';
 
 function statusKey(s) {
-  return { 'Awaiting Unit': 'aw', 'Awaiting Handset': 'aw', 'For Release': 'fr', 'Fulfilled': 'fu', 'Cancelled': 'ca' }[s] || 'ot';
+  return { 'Awaiting Unit': 'aw', 'Awaiting Handset': 'aw', 'For Release': 'fr', 'Fulfilled': 'fu', 'Cancelled': 'ca', 'Expired': 'ex' }[s] || 'ot';
 }
 function today() {
   const d = new Date(), p = n => String(n).padStart(2, '0');
@@ -543,7 +551,7 @@ function fill(sel, list, placeholder, allowEmpty) {
 }
 
 /* ================= Render ================= */
-function render() { renderKpis(); renderTop(); renderTable(); renderLists(); saveCache(); }
+function render() { renderKpis(); renderAvail(); renderTop(); renderTable(); renderLists(); saveCache(); }
 
 function renderKpis() {
   const units = rows => rows.reduce((a, r) => a + (Number(r.qty) || 0), 0);
@@ -597,7 +605,9 @@ function statusCell(r) {
 
 function adminButtons(r) {
   if (!S.admin || r.pending) return '';
-  return `<button class="icon" title="Edit" onclick="openForm('${esc(r.id)}')">✎</button>
+  const canHold = !['Fulfilled', 'Cancelled'].includes(r.status);
+  return `${canHold ? `<button class="icon" title="Start hold (max 48h)" onclick="holdRequest('${esc(r.id)}')">⏱</button>` : ''}
+          <button class="icon" title="Edit" onclick="openForm('${esc(r.id)}')">✎</button>
           <button class="icon" title="Delete" onclick="removeRow('${esc(r.id)}')">🗑</button>`;
 }
 
@@ -614,7 +624,7 @@ function renderTable() {
       <td>${esc(r.type)}</td>
       <td>${esc(r.seller)}</td>
       <td class="wl">${esc(r.waitlist || '…')}</td>
-      <td>${statusCell(r)}</td>
+      <td>${statusCell(r)}<br>${holdChip(r)}</td>
       <td class="admin-col" style="${S.admin ? '' : 'display:none'}">${adminButtons(r)}</td>
     </tr>`).join('') : `<tr><td colspan="${S.admin ? 10 : 9}" class="empty">No requests found</td></tr>`;
 
@@ -635,7 +645,7 @@ function renderTable() {
         <span class="chip">${esc(r.seller)}</span>
       </div>
       ${r.remarks ? `<div style="margin-top:6px;color:var(--muted);font-size:12px">${esc(r.remarks)}</div>` : ''}
-      <div class="r3">${statusCell(r)}<span>${adminButtons(r)}</span></div>
+      <div class="r3"><span>${statusCell(r)}<br>${holdChip(r)}</span><span>${adminButtons(r)}</span></div>
     </div>`).join('') : '<div class="empty">No requests found</div>';
 
   $('count').textContent = `Showing ${list.length} of ${S.rows.length} request(s)`;
@@ -763,6 +773,82 @@ function removeRow(id) {
     .then(() => toast('Request ' + id + ' deleted'))
     .catch(err => { S.rows.splice(i, 0, r); render(); toast(err.message, true); });
 }
+
+/* ================= 48-hour hold ================= */
+const HOLD_MAX = 48;
+function leftText(ms) {
+  if (ms <= 0) return 'releasing…';
+  const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
+  return h + 'h ' + String(m).padStart(2, '0') + 'm left';
+}
+function holdChip(r) {
+  if (r.status === 'For Release' && r.holdUntil) {
+    const left = r.holdUntil - Date.now();
+    return `<span class="hold ${left < 6 * 3600000 ? 'urgent' : ''}" data-until="${r.holdUntil}">⏱ ${leftText(left)}</span>`;
+  }
+  if (r.status === 'Expired') {
+    const when = r.releasedAt ? new Date(r.releasedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    return `<span class="hold off">${r.reassignedTo ? 'Unit → ' + esc(r.reassignedTo) : 'Unit released' + (when ? ' · ' + esc(when) : '')}</span>`;
+  }
+  return '';
+}
+function holdRequest(id) {
+  if (!S.admin) return;
+  const r = S.rows.find(x => x.id === id);
+  if (!r) return;
+  const ans = prompt(`Hold ${r.handset} (${r.color}) for ${r.first} ${r.last}.\nHow many hours? (1–${HOLD_MAX})`, String(HOLD_MAX));
+  if (ans === null) return;
+  const hours = Math.max(1, Math.min(HOLD_MAX, Math.round(Number(ans) || HOLD_MAX)));
+  const backup = { ...r };
+  r.status = 'For Release'; r.holdUntil = Date.now() + hours * 3600000; r.releasedAt = 0;
+  render();
+  api('hold', { id: id, hours: hours })
+    .then(res => {
+      const i = S.rows.findIndex(x => x.id === id);
+      if (i > -1) S.rows[i] = res.row;
+      if (res.usedFrom) { const u = S.rows.find(x => x.id === res.usedFrom); if (u) u.reassignedTo = id; }
+      render();
+      toast(`${id} on hold for ${hours}h`);
+    })
+    .catch(err => { Object.assign(r, backup); render(); toast(err.message, true); });
+}
+function renderAvail() {
+  const map = {};
+  S.rows.filter(r => r.status === 'Expired' && !r.reassignedTo).forEach(r => {
+    const k = norm(r.handset) + '|' + norm(r.color);
+    if (!map[k]) map[k] = { handset: r.handset, color: r.color, units: 0 };
+    map[k].units += Number(r.qty) || 1;
+  });
+  const list = Object.entries(map).map(([k, x]) => {
+    const next = S.rows.filter(r => r.status === 'Awaiting Unit' && norm(r.handset) + '|' + norm(r.color) === k)
+      .sort((a, b) => (parseInt(a.waitlist, 10) || 1e9) - (parseInt(b.waitlist, 10) || 1e9) || a.date.localeCompare(b.date))[0];
+    return { ...x, next };
+  });
+  $('avail').innerHTML = list.length ? list.map(x => `
+    <li><span>${esc(x.handset)}<span style="display:block;color:var(--muted);font-size:12px">${esc(x.color)}${x.next ? ` • Next: ${esc(x.next.id)} · ${esc(x.next.seller)} · WL #${esc(x.next.waitlist)}` : ' • No one waiting'}</span></span>
+    <span style="display:flex;align-items:center;gap:8px"><span class="u">${x.units}</span>${S.admin && x.next ? `<button class="btn btn-primary mini" onclick="holdRequest('${esc(x.next.id)}')">Assign</button>` : ''}</span></li>`).join('')
+    : '<li style="color:var(--muted)">No released units</li>';
+}
+// Live countdown + auto-release when time is up
+setInterval(() => {
+  if (!S.loaded) return;
+  let expired = false;
+  S.rows.forEach(r => {
+    if (r.status === 'For Release' && r.holdUntil && r.holdUntil <= Date.now()) {
+      r.status = 'Expired'; r.releasedAt = r.holdUntil; expired = true;
+    }
+  });
+  if (expired) {
+    render();
+    if (tokenValid() && !S.fetching) { S.fetching = true; api('init').then(d => init(d)).catch(() => {}).finally(() => { S.fetching = false; }); }
+  } else {
+    document.querySelectorAll('[data-until]').forEach(el => {
+      const left = Number(el.dataset.until) - Date.now();
+      el.textContent = '⏱ ' + leftText(left);
+      el.classList.toggle('urgent', left < 6 * 3600000);
+    });
+  }
+}, 30000);
 
 /* ================= Users (admin only) ================= */
 function openUsers() {
