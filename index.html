@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1f4d">
+<title>Handset Pre-Order Unified Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer onload="gisReady()"></script>
+<style>
+:root{
+  --bg:#f3f5f9;--card:#fff;--ink:#16213a;--muted:#6b7590;--line:#e3e7ef;
+  --brand:#0b1f4d;--accent:#1d5bd8;
+  --aw:#f59e0b;--aw-bg:#fff6e5;--aw-ink:#92560a;
+  --fr:#1d5bd8;--fr-bg:#e8f0ff;--fr-ink:#1d4bb0;
+  --fu:#16a34a;--fu-bg:#e7f8ee;--fu-ink:#13753a;
+  --ca:#dc2626;--ca-bg:#fdecec;--ca-ink:#a11d1d;
+  --ot:#64748b;--ot-bg:#eef1f5;--ot-ink:#334155;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+body.noscroll{overflow:hidden}
+
+header{background:var(--brand);color:#fff;padding:16px}
+.hwrap{max-width:1300px;margin:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{height:48px;width:auto;background:#fff;border-radius:8px;padding:4px 8px;display:none}
+h1{margin:0;font-size:22px;font-weight:800;letter-spacing:.3px;line-height:1.2}
+.sub{font-size:11px;letter-spacing:2px;opacity:.75;text-transform:uppercase}
+.tags{font-size:12px;opacity:.65;margin-top:2px}
+.hright{margin-left:auto;display:flex;gap:10px;align-items:center}
+.who{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);
+  border-radius:999px;padding:4px 12px 4px 4px;font-size:13px;max-width:280px;cursor:pointer;color:#fff;font-family:inherit}
+.avatar{width:30px;height:30px;border-radius:50%;background:#fff;color:var(--brand);font-weight:800;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.who .nm{font-weight:700;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.who .rl{font-size:11px;opacity:.75;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who.admin{border-color:#16a34a;box-shadow:inset 0 0 0 1px #16a34a}
+
+main{max-width:1300px;margin:auto;padding:16px 16px 40px}
+.btn{border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn:disabled{opacity:.6;cursor:default}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-light{background:#fff;color:var(--ink);border:1px solid var(--line)}
+
+.rolebar{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;
+  padding:9px 12px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+.rolebar b{color:var(--ink)}
+.rolebar.admin{background:var(--fu-bg);border-color:#bfe8cf;color:var(--fu-ink)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border-radius:14px;padding:12px 14px;border:1px solid var(--line);
+  border-top:4px solid var(--c);cursor:pointer;transition:transform .1s;user-select:none}
+.kpi:hover{transform:translateY(-2px)}
+.kpi.active{box-shadow:0 0 0 2px var(--c)}
+.kpi .l{color:var(--muted);font-size:13px;font-weight:500}
+.kpi .v{font-size:30px;font-weight:800;line-height:1.2}
+.kpi .s{font-size:12px;color:var(--muted)}
+
+.grid2{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+@media(max-width:950px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.panel h3{margin:0 0 10px;font-size:16px}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+input,select,textarea{font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+  background:#fff;color:var(--ink);width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid #bcd0fb;border-color:var(--accent)}
+select:disabled{background:var(--bg);color:var(--ink);opacity:1}
+.filters input{flex:1 1 200px;width:auto}
+.filters select{width:auto;flex:0 1 auto}
+
+.tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;
+  padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr.pending td{opacity:.5}
+td .small{display:block;color:var(--muted);font-size:12px}
+.wl{font-weight:800}
+.st{border-radius:999px;padding:4px 10px;font-weight:700;font-size:12px;border:0;width:auto;cursor:pointer;display:inline-block}
+span.st{cursor:default}
+.icon{background:none;border:0;cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;color:var(--muted)}
+.icon:hover{background:var(--bg);color:var(--ink)}
+.empty{text-align:center;color:var(--muted);padding:30px 0}
+
+.top{list-style:none;margin:0;padding:0}
+.top li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.top li:last-child{border-bottom:0}
+.top .u{font-weight:800;color:var(--accent)}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+
+/* Request form */
+.modal{position:fixed;inset:0;background:rgba(11,31,77,.45);display:none;align-items:flex-start;
+  justify-content:center;padding:30px 12px;overflow:auto;z-index:20}
+.modal.open{display:flex}
+.box{background:#fff;border-radius:16px;width:100%;max-width:720px;padding:18px}
+.box h2{margin:0 0 14px;font-size:19px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.fgrid{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
+label{font-size:13px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px}
+label .req{color:var(--ca)}
+.hint{font-size:11px;color:var(--muted)}
+.sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+/* Sign-in / denied screens */
+.screen{position:fixed;inset:0;background:var(--brand);display:none;align-items:center;justify-content:center;
+  padding:16px;z-index:60}
+.screen.open{display:flex}
+.sbox{background:#fff;border-radius:18px;max-width:380px;width:100%;padding:26px 22px;text-align:center}
+.sbox h2{margin:0 0 4px;font-size:20px;font-weight:800}
+.sbox .sub2{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:18px}
+.sbox p{color:var(--muted);margin:0 0 16px}
+.sbox .em{font-weight:700;color:var(--ink);word-break:break-all}
+.gbtn{display:flex;justify-content:center;min-height:44px}
+.serr{color:var(--ca);font-size:13px;margin-top:12px;min-height:18px}
+
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 16px;border-radius:10px;font-weight:500;display:none;z-index:70;max-width:90vw}
+.toast.err{background:var(--ca)}
+#loading{text-align:center;padding:60px 0;color:var(--muted)}
+
+/* Mobile cards (hidden on desktop) */
+.cards{display:none}
+.fab{display:none}
+.rcard{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:12px;background:#fff}
+.rcard.pending{opacity:.5}
+.rcard .r1{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.rcard .nm{font-weight:800;font-size:16px;line-height:1.3}
+.rcard .id{color:var(--muted);font-size:12px;text-align:right}
+.rcard .tel{color:var(--accent);text-decoration:none;font-size:14px;font-weight:500}
+.rcard .dev{margin:8px 0 6px;font-weight:700;font-size:15px}
+.rcard .dev span{color:var(--muted);font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--bg);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:500}
+.chip b{font-weight:800}
+.rcard .r3{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}
+.rcard .st{font-size:13px;padding:7px 12px}
+.rcard .icon{font-size:18px;padding:6px 10px;border:1px solid var(--line)}
+
+@media(max-width:700px){
+  header{padding:10px 12px}
+  .hwrap{gap:10px;flex-wrap:nowrap}
+  .logo{height:34px;padding:3px 6px}
+  h1{font-size:16px}
+  .sub{font-size:9px;letter-spacing:1px}
+  .tags,#btnNew{display:none}
+  .who{padding:3px;border-radius:50%}
+  .who .txt{display:none}
+
+  main{padding:12px 10px 96px}
+  .kpis{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+  .kpis .kpi:first-child{grid-column:1/-1}
+  .kpi{padding:10px 12px;border-radius:12px}
+  .kpi:hover{transform:none}
+  .kpi .v{font-size:24px}
+
+  .grid2{gap:12px}
+  .panel{padding:10px;border-radius:12px}
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .filters input,.filters #fl_status{grid-column:1/-1}
+  .filters select{width:100%}
+  input,select,textarea{font-size:16px}   /* stops iOS zoom on focus */
+
+  .tblwrap{display:none}
+  .cards{display:flex;flex-direction:column;gap:10px}
+
+  /* Full-screen solid form */
+  .modal{padding:0;background:#fff;-webkit-overflow-scrolling:touch}
+  .modal.open{display:block}
+  .box{display:block;border-radius:0;max-width:none;width:100%;height:auto;min-height:100vh;
+    background:#fff;padding:16px 14px 110px}
+  .box h2{position:sticky;top:0;background:#fff;margin:-16px -14px 12px;padding:14px;
+    border-bottom:1px solid var(--line);z-index:2;font-size:18px}
+  .fgrid{gap:10px}
+  .box .actions{position:fixed;left:0;right:0;bottom:0;margin:0;padding:10px 14px;background:#fff;
+    border-top:1px solid var(--line);z-index:21}
+  .box .actions .btn{flex:1;padding:13px}
+
+  .fab{display:block;position:fixed;right:16px;bottom:18px;width:58px;height:58px;border-radius:50%;
+    padding:0;font-size:30px;line-height:58px;box-shadow:0 6px 18px rgba(29,91,216,.45);z-index:15}
+  .toast{bottom:90px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <img id="logo" class="logo" alt="Logo">
+    <div>
+      <h1>Handset Pre-Order Unified Tracker</h1>
+      <div class="sub">Centralized Store Request Monitoring</div>
+      <div class="tags">Request Monitoring • Stock Allocation • Delivery Updates • Customer Follow-up</div>
+    </div>
+    <div class="hright">
+      <button class="who" id="who" style="display:none" onclick="logout()" title="Sign out">
+        <div class="avatar" id="avatar"></div>
+        <div class="txt"><div class="nm" id="whoName"></div><div class="rl" id="whoRole"></div></div>
+      </button>
+      <button class="btn btn-primary" id="btnNew" onclick="openForm()" style="display:none">+ New Request</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="loading"></div>
+  <div id="app" style="display:none">
+    <div class="rolebar" id="rolebar"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <section class="panel">
+        <div class="filters">
+          <input id="fl_q" placeholder="Search name, mobile, handset, ID…" oninput="setFilter('q',this.value)">
+          <select id="fl_status" onchange="setFilter('status',this.value)"></select>
+          <select id="fl_seller" onchange="setFilter('seller',this.value)"></select>
+          <select id="fl_type" onchange="setFilter('type',this.value)"></select>
+        </div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr>
+              <th>ID</th><th>Date</th><th>Customer</th><th>Handset</th><th>Qty</th>
+              <th>Type</th><th>Seller</th><th>WL #</th><th>Status</th><th class="admin-col"></th>
+            </tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div class="cards" id="cards"></div>
+        <div class="note" id="count"></div>
+      </section>
+
+      <aside class="panel">
+        <h3>Most Requested (open)</h3>
+        <ul class="top" id="top"></ul>
+        <div class="note">Units not yet Fulfilled or Cancelled, by handset and color.</div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<!-- Request form -->
+<div class="modal" id="modal" onclick="if(event.target===this)closeForm()">
+  <form class="box" id="form" onsubmit="submitForm(event)">
+    <h2 id="formTitle">New Request</h2>
+    <input type="hidden" id="f_id">
+    <div class="fgrid">
+      <div><label>Customer First Name <span class="req">*</span></label><input id="f_first" required></div>
+      <div><label>Customer Last Name <span class="req">*</span></label><input id="f_last" required></div>
+      <div><label>Mobile # <span class="req">*</span></label><input id="f_mobile" inputmode="tel" placeholder="09XXXXXXXXX" required></div>
+      <div><label>Request Date <span class="req">*</span></label><input id="f_date" type="date" required></div>
+      <div><label>Handset Description <span class="req">*</span></label><input id="f_handset" list="dl_handset" placeholder="e.g. iPhone 17 Pro Max 256GB" required></div>
+      <div><label>Exact Color <span class="req">*</span></label><input id="f_color" list="dl_color" required></div>
+      <div><label>Quantity <span class="req">*</span></label><input id="f_qty" type="number" min="1" value="1" required></div>
+      <div><label>Transaction Type <span class="req">*</span></label><select id="f_type" required></select></div>
+      <div><label>Requestor / Seller <span class="req">*</span></label><select id="f_seller" required></select></div>
+      <div class="adminonly"><label>Waitlist #</label><input id="f_wl" placeholder="Auto"><div class="hint">Leave empty to auto-number per handset + color</div></div>
+      <div class="adminonly"><label>Status</label><select id="f_status"></select></div>
+      <div class="full selleronly"><div class="sellernote" id="sellerNote"></div></div>
+      <div class="full"><label>Remarks</label><textarea id="f_remarks" rows="2"></textarea></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-light" onclick="closeForm()">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="btnSave">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- Sign in -->
+<div class="screen" id="loginScreen">
+  <div class="sbox">
+    <h2>Handset Pre-Order Tracker</h2>
+    <div class="sub2">Centralized Store Request Monitoring</div>
+    <p>Sign in with your Google account to continue.</p>
+    <div class="gbtn" id="gbtn"></div>
+    <div class="serr" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- Access denied -->
+<div class="screen" id="deniedScreen">
+  <div class="sbox">
+    <h2>Access denied</h2>
+    <p>This account is not registered:</p>
+    <p class="em" id="deniedEmail"></p>
+    <p>Ask the admin to add this email to the system.</p>
+    <button class="btn btn-primary" style="width:100%" onclick="logout(true)">Use another account</button>
+  </div>
+</div>
+
+<button class="btn btn-primary fab" id="fab" onclick="openForm()" aria-label="New Request" style="display:none">+</button>
+
+<datalist id="dl_handset"></datalist>
+<datalist id="dl_color"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONFIG ================= */
+const CONFIG = {
+  API_URL:   'PASTE_APPS_SCRIPT_EXEC_URL_HERE',                  // Apps Script web app /exec URL
+  CLIENT_ID: 'PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com'   // Google OAuth Client ID (same as Code.gs)
+};
+/* ========================================== */
+
+const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: false, loaded: false,
+  filter: { q: '', status: '', seller: '', type: '' } };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const CLOSED = ['Fulfilled', 'Cancelled'];
+const TOKEN_KEY = 'hpo_id_token';
+
+function statusKey(s) {
+  return { 'Awaiting Unit': 'aw', 'Awaiting Handset': 'aw', 'For Release': 'fr', 'Fulfilled': 'fu', 'Cancelled': 'ca' }[s] || 'ot';
+}
+function today() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function firstStatus() { return S.statuses[0] || 'Awaiting Unit'; }
+
+/* ================= Google Sign-In ================= */
+const AUTH = { token: '', exp: 0, profile: null, waiting: [] };
+
+function decodeJwt(t) {
+  const b = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  const json = decodeURIComponent(atob(b).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  return JSON.parse(json);
+}
+
+function setToken(t) {
+  const p = decodeJwt(t);
+  AUTH.token = t; AUTH.exp = p.exp * 1000; AUTH.profile = p;
+  try { sessionStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+}
+function clearToken() {
+  AUTH.token = ''; AUTH.exp = 0;
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+}
+function tokenValid() { return AUTH.token && AUTH.exp - Date.now() > 60 * 1000; }
+
+function gisReady() {
+  if (/PASTE_/.test(CONFIG.API_URL + CONFIG.CLIENT_ID)) {
+    $('loading').textContent = 'Setup needed: put API_URL and CLIENT_ID in index.html';
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: CONFIG.CLIENT_ID,
+    callback: onCredential,
+    auto_select: true,              // returning users are signed in automatically
+    cancel_on_tap_outside: false,
+    use_fedcm_for_prompt: true
+  });
+  google.accounts.id.renderButton($('gbtn'), { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', width: 280 });
+
+  let saved = '';
+  try { saved = sessionStorage.getItem(TOKEN_KEY) || ''; } catch (e) {}
+  if (saved) { try { setToken(saved); } catch (e) { clearToken(); } }
+
+  if (tokenValid()) loadApp();
+  else requestSignIn();
+}
+
+function requestSignIn() {
+  $('loginErr').textContent = '';
+  $('loginScreen').classList.add('open');
+  google.accounts.id.prompt();
+}
+
+function onCredential(resp) {
+  if (!resp || !resp.credential) { $('loginErr').textContent = 'Sign-in failed, please try again.'; return; }
+  setToken(resp.credential);
+  $('loginScreen').classList.remove('open');
+  const w = AUTH.waiting.splice(0);
+  w.forEach(fn => fn(AUTH.token));
+  if (!S.loaded) loadApp();
+}
+
+function ensureToken() {
+  if (tokenValid()) return Promise.resolve(AUTH.token);
+  return new Promise(res => { AUTH.waiting.push(res); requestSignIn(); });
+}
+
+function logout(silent) {
+  if (!silent && !confirm('Sign out?')) return;
+  try { google.accounts.id.disableAutoSelect(); } catch (e) {}
+  clearToken();
+  location.reload();
+}
+
+/* ================= API ================= */
+function api(action, params, retried) {
+  return ensureToken()
+    .then(tok => fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // simple request: no CORS preflight
+      body: JSON.stringify(Object.assign({ action: action, idToken: tok }, params || {}))
+    }))
+    .then(r => r.json())
+    .then(res => {
+      if (res.ok) return res.data;
+      const err = String(res.error || 'Error');
+      if (err === 'SESSION_EXPIRED' && !retried) { clearToken(); return api(action, params, true); }
+      if (err.indexOf('ACCESS_DENIED:') === 0) { showDenied(err.split(':')[1]); throw new Error('Access denied'); }
+      throw new Error(err);
+    });
+}
+
+function showDenied(email) {
+  $('deniedEmail').textContent = email || '';
+  $('loginScreen').classList.remove('open');
+  $('deniedScreen').classList.add('open');
+}
+
+/* ================= Load ================= */
+function loadApp() {
+  $('loading').textContent = 'Loading…';
+  api('init').then(init).catch(e => { if (e.message !== 'Access denied') $('loading').textContent = e.message; });
+}
+
+function init(d) {
+  S.loaded = true;
+  Object.assign(S, d);
+  S.admin = !!d.user.admin;
+  if (d.logo) { $('logo').src = d.logo; $('logo').style.display = 'block'; }
+
+  // Signed-in user chip
+  const pic = AUTH.profile && AUTH.profile.picture;
+  $('avatar').innerHTML = pic ? `<img src="${esc(pic)}" alt="" referrerpolicy="no-referrer">` : esc((d.user.name || d.user.email).charAt(0).toUpperCase());
+  $('whoName').textContent = d.user.name;
+  $('whoRole').textContent = (S.admin ? 'Admin' : 'Seller') + ' · ' + d.user.email;
+  $('who').classList.toggle('admin', S.admin);
+  $('who').style.display = '';
+
+  $('rolebar').classList.toggle('admin', S.admin);
+  $('rolebar').innerHTML = S.admin
+    ? '🔓 <span><b>Admin</b> — you can edit, delete and update status.</span>'
+    : '👁️ <span><b>Seller</b> — you can add new requests, view and search. To edit or change status, ask the admin.</span>';
+  document.querySelectorAll('.admin-col').forEach(el => el.style.display = S.admin ? '' : 'none');
+
+  // Sellers always request under their own name
+  if (S.admin) fill($('f_seller'), S.sellers, 'Select seller');
+  else { fill($('f_seller'), [d.user.name]); $('f_seller').disabled = true; }
+
+  fill($('f_type'), S.types, 'Select type');
+  fill($('f_status'), S.statuses);
+  fill($('fl_status'), S.statuses, 'All statuses', true);
+  fill($('fl_seller'), S.sellers, 'All sellers', true);
+  fill($('fl_type'), S.types, 'All types', true);
+
+  $('btnNew').style.display = '';
+  $('fab').style.display = '';
+  $('loading').style.display = 'none';
+  $('app').style.display = 'block';
+  render();
+}
+
+function fill(sel, list, placeholder, allowEmpty) {
+  sel.innerHTML = (placeholder ? `<option value="">${esc(placeholder)}</option>` : '') +
+    list.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if (placeholder && !allowEmpty) sel.options[0].disabled = true;
+}
+
+/* ================= Render ================= */
+function render() { renderKpis(); renderTop(); renderTable(); renderLists(); }
+
+function renderKpis() {
+  const units = rows => rows.reduce((a, r) => a + (Number(r.qty) || 0), 0);
+  const cards = [{ key: '', label: 'Total Requests', c: 'var(--brand)', rows: S.rows }]
+    .concat(S.statuses.map(s => ({ key: s, label: s, c: `var(--${statusKey(s)})`, rows: S.rows.filter(r => r.status === s) })));
+  $('kpis').innerHTML = cards.map(k => `
+    <div class="kpi ${S.filter.status === k.key && k.key ? 'active' : ''}" style="--c:${k.c}" onclick="kpiClick('${esc(k.key)}')">
+      <div class="l">${esc(k.label)}</div>
+      <div class="v">${k.rows.length}</div>
+      <div class="s">${units(k.rows)} unit(s)</div>
+    </div>`).join('');
+}
+
+function kpiClick(key) {
+  const v = S.filter.status === key ? '' : key;
+  $('fl_status').value = v;
+  setFilter('status', v);
+}
+
+function renderTop() {
+  const map = {};
+  S.rows.filter(r => !CLOSED.includes(r.status)).forEach(r => {
+    const k = norm(r.handset) + '|' + norm(r.color);
+    if (!map[k]) map[k] = { name: r.handset, color: r.color, units: 0, req: 0 };
+    map[k].units += Number(r.qty) || 0; map[k].req++;
+  });
+  const list = Object.values(map).sort((a, b) => b.units - a.units).slice(0, 8);
+  $('top').innerHTML = list.length ? list.map(x => `
+    <li><span>${esc(x.name)}<span style="display:block;color:var(--muted);font-size:12px">${esc(x.color)} • ${x.req} request(s)</span></span>
+    <span class="u">${x.units}</span></li>`).join('')
+    : '<li style="color:var(--muted)">No open requests</li>';
+}
+
+function filtered() {
+  const f = S.filter, q = norm(f.q);
+  return S.rows.filter(r =>
+    (!f.status || r.status === f.status) &&
+    (!f.seller || r.seller === f.seller) &&
+    (!f.type || r.type === f.type) &&
+    (!q || norm([r.id, r.first, r.last, r.mobile, r.handset, r.color, r.remarks].join(' ')).includes(q))
+  ).sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0) || b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+}
+
+function statusCell(r) {
+  const sk = statusKey(r.status);
+  const style = `background:var(--${sk}-bg);color:var(--${sk}-ink)`;
+  if (!S.admin || r.pending) return `<span class="st" style="${style}">${esc(r.status)}</span>`;
+  const opts = S.statuses.map(s => `<option ${s === r.status ? 'selected' : ''}>${esc(s)}</option>`).join('');
+  return `<select class="st" style="${style}" onchange="changeStatus('${esc(r.id)}',this.value)">${opts}</select>`;
+}
+
+function adminButtons(r) {
+  if (!S.admin || r.pending) return '';
+  return `<button class="icon" title="Edit" onclick="openForm('${esc(r.id)}')">✎</button>
+          <button class="icon" title="Delete" onclick="removeRow('${esc(r.id)}')">🗑</button>`;
+}
+
+function renderTable() {
+  const list = filtered();
+
+  $('tbody').innerHTML = list.length ? list.map(r => `
+    <tr class="${r.pending ? 'pending' : ''}">
+      <td>${esc(r.pending ? '…' : r.id)}</td>
+      <td>${esc(r.date)}</td>
+      <td>${esc(r.first)} ${esc(r.last)}<span class="small">${esc(r.mobile)}</span></td>
+      <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span></td>
+      <td>${esc(r.qty)}</td>
+      <td>${esc(r.type)}</td>
+      <td>${esc(r.seller)}</td>
+      <td class="wl">${esc(r.waitlist || '…')}</td>
+      <td>${statusCell(r)}</td>
+      <td class="admin-col" style="${S.admin ? '' : 'display:none'}">${adminButtons(r)}</td>
+    </tr>`).join('') : `<tr><td colspan="${S.admin ? 10 : 9}" class="empty">No requests found</td></tr>`;
+
+  $('cards').innerHTML = list.length ? list.map(r => `
+    <div class="rcard ${r.pending ? 'pending' : ''}" style="--c:var(--${statusKey(r.status)})">
+      <div class="r1">
+        <div>
+          <div class="nm">${esc(r.first)} ${esc(r.last)}</div>
+          <a class="tel" href="tel:${esc(r.mobile)}">📞 ${esc(r.mobile)}</a>
+        </div>
+        <div class="id">${esc(r.pending ? 'Saving…' : r.id)}<br>${esc(r.date)}</div>
+      </div>
+      <div class="dev">${esc(r.handset)} <span>• ${esc(r.color)}</span></div>
+      <div class="chips">
+        <span class="chip">Qty <b>${esc(r.qty)}</b></span>
+        <span class="chip">WL # <b>${esc(r.waitlist || '…')}</b></span>
+        <span class="chip">${esc(r.type)}</span>
+        <span class="chip">${esc(r.seller)}</span>
+      </div>
+      ${r.remarks ? `<div style="margin-top:6px;color:var(--muted);font-size:12px">${esc(r.remarks)}</div>` : ''}
+      <div class="r3">${statusCell(r)}<span>${adminButtons(r)}</span></div>
+    </div>`).join('') : '<div class="empty">No requests found</div>';
+
+  $('count').textContent = `Showing ${list.length} of ${S.rows.length} request(s)`;
+}
+
+function renderLists() {
+  const uniq = k => [...new Set(S.rows.map(r => r[k]).filter(Boolean))].sort();
+  $('dl_handset').innerHTML = uniq('handset').map(v => `<option value="${esc(v)}">`).join('');
+  $('dl_color').innerHTML = uniq('color').map(v => `<option value="${esc(v)}">`).join('');
+}
+
+function setFilter(k, v) { S.filter[k] = v; renderKpis(); renderTable(); }
+
+/* ================= Form ================= */
+function openForm(id) {
+  const r = id ? S.rows.find(x => x.id === id) : null;
+  if (r && !S.admin) return toast('Only the admin can edit. Please ask the admin.', true);
+
+  $('formTitle').textContent = r ? 'Edit Request ' + r.id : 'New Request';
+  $('f_id').value = r ? r.id : '';
+  $('f_first').value = r ? r.first : '';
+  $('f_last').value = r ? r.last : '';
+  $('f_mobile').value = r ? r.mobile : '';
+  $('f_date').value = r ? r.date : today();
+  $('f_handset').value = r ? r.handset : '';
+  $('f_color').value = r ? r.color : '';
+  $('f_qty').value = r ? r.qty : 1;
+  $('f_type').value = r ? r.type : '';
+  $('f_seller').value = S.admin ? (r ? r.seller : '') : S.user.name;
+  $('f_wl').value = r ? r.waitlist : '';
+  $('f_status').value = r ? r.status : firstStatus();
+  $('f_remarks').value = r ? r.remarks : '';
+
+  document.querySelectorAll('.adminonly').forEach(el => el.style.display = S.admin ? '' : 'none');
+  document.querySelectorAll('.selleronly').forEach(el => el.style.display = S.admin ? 'none' : '');
+  $('sellerNote').innerHTML = `New requests are saved as <b>${esc(firstStatus())}</b> and get a waitlist # automatically. After saving, only the admin can edit or change the status.`;
+
+  $('modal').classList.add('open');
+  document.body.classList.add('noscroll');
+  $('modal').scrollTop = 0;
+  if (window.innerWidth > 700) setTimeout(() => $('f_first').focus(), 50);
+}
+function closeForm() {
+  $('modal').classList.remove('open');
+  document.body.classList.remove('noscroll');
+}
+
+function localWaitlist(o) {
+  const key = norm(o.handset) + '|' + norm(o.color);
+  let max = 0;
+  S.rows.forEach(r => {
+    if (r.id === o.id) return;
+    if (norm(r.handset) + '|' + norm(r.color) === key) max = Math.max(max, parseInt(r.waitlist, 10) || 0);
+  });
+  return String(max + 1);
+}
+
+function submitForm(e) {
+  e.preventDefault();
+  const o = {
+    id: $('f_id').value, first: $('f_first').value.trim(), last: $('f_last').value.trim(),
+    mobile: $('f_mobile').value.replace(/[\s\-()]/g, ''), date: $('f_date').value,
+    handset: $('f_handset').value.trim(), color: $('f_color').value.trim(),
+    qty: Number($('f_qty').value) || 1, type: $('f_type').value,
+    seller: S.admin ? $('f_seller').value : S.user.name,
+    waitlist: S.admin ? $('f_wl').value.trim() : '',
+    status: S.admin ? $('f_status').value : firstStatus(),
+    remarks: $('f_remarks').value.trim()
+  };
+  if (!/^\+?\d{10,13}$/.test(o.mobile)) return toast('Mobile # is not valid', true);
+  if (!o.type || !o.seller) return toast('Select transaction type and seller', true);
+
+  const editing = !!o.id;
+  if (editing && !S.admin) return toast('Only the admin can edit.', true);
+  let backup = null, tempId = null;
+
+  if (editing) {
+    const i = S.rows.findIndex(r => r.id === o.id);
+    backup = { ...S.rows[i] };
+    S.rows[i] = { ...o, waitlist: o.waitlist || localWaitlist(o) };
+  } else {
+    tempId = 'tmp-' + Date.now();
+    S.rows.push({ ...o, id: tempId, waitlist: o.waitlist || localWaitlist({ ...o, id: tempId }), pending: true });
+  }
+  closeForm();
+  render();
+
+  api('save', { data: editing ? o : { ...o, id: '' } })
+    .then(saved => {
+      const id = editing ? o.id : tempId;
+      const i = S.rows.findIndex(r => r.id === id);
+      if (i > -1) S.rows[i] = saved;
+      render();
+      toast(editing ? 'Request updated' : 'Request ' + saved.id + ' added');
+    })
+    .catch(err => {
+      if (editing) { const i = S.rows.findIndex(r => r.id === o.id); if (i > -1) S.rows[i] = backup; }
+      else S.rows = S.rows.filter(r => r.id !== tempId);
+      render();
+      toast(err.message, true);
+    });
+}
+
+/* ================= Status / Delete (admin) ================= */
+function changeStatus(id, status) {
+  if (!S.admin) return;
+  const r = S.rows.find(x => x.id === id);
+  if (!r) return;
+  const old = r.status;
+  r.status = status;
+  render();
+  api('status', { id: id, status: status })
+    .then(() => toast(id + ' → ' + status))
+    .catch(err => { r.status = old; render(); toast(err.message, true); });
+}
+
+function removeRow(id) {
+  if (!S.admin) return;
+  const r = S.rows.find(x => x.id === id);
+  if (!r || !confirm(`Delete request ${id} (${r.first} ${r.last})?`)) return;
+  const i = S.rows.indexOf(r);
+  S.rows.splice(i, 1);
+  render();
+  api('delete', { id: id })
+    .then(() => toast('Request ' + id + ' deleted'))
+    .catch(err => { S.rows.splice(i, 0, r); render(); toast(err.message, true); });
+}
+
+/* ================= Toast ================= */
+let tTimer;
+function toast(msg, err) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (err ? ' err' : '');
+  t.style.display = 'block';
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => t.style.display = 'none', 3200);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeForm(); });
+</script>
+</body>
+</html>
