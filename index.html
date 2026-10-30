@@ -38,7 +38,7 @@ h1{margin:0;font-size:22px;font-weight:800;letter-spacing:.3px;line-height:1.2}
   display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
 .avatar img{width:100%;height:100%;object-fit:cover}
 .who .nm{font-weight:700;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
-.who .rl{font-size:11px;opacity:.75;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .rl{display:none}
 .who.admin{border-color:#16a34a;box-shadow:inset 0 0 0 1px #16a34a}
 
 main{max-width:1300px;margin:auto;padding:16px 16px 40px}
@@ -231,7 +231,7 @@ input[readonly]{background:var(--bg);cursor:default}
 <main>
   <div id="loading"></div>
   <div id="app" style="display:none">
-    <div class="rolebar" id="rolebar"></div>
+    <div class="rolebar" id="rolebar" style="display:none"></div>
     <div class="kpis" id="kpis"></div>
 
     <div class="grid2">
@@ -302,7 +302,7 @@ input[readonly]{background:var(--bg);cursor:default}
       <div><label>Gmail <span class="req">*</span></label><input id="u_email" type="email" placeholder="name@gmail.com" required></div>
       <div><label>Name <span class="req">*</span></label><input id="u_name" placeholder="e.g. Grace" required></div>
       <div><label>Role</label><select id="u_role"><option>Seller</option><option>Admin</option></select></div>
-      <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary" style="width:100%">+ Add user</button></div>
+      <div style="display:flex;align-items:flex-end;gap:8px"><button type="button" class="btn btn-light" id="uCancel" onclick="cancelEditUser()" style="display:none">Cancel</button><button type="submit" class="btn btn-primary" id="uSubmit" style="flex:1">+ Add user</button></div>
     </form>
     <div class="note">The name is used as Requestor / Seller on this person's requests.</div>
     <div class="ulist" id="ulist"></div>
@@ -851,9 +851,23 @@ setInterval(() => {
 }, 30000);
 
 /* ================= Users (admin only) ================= */
+function cancelEditUser() {
+  S.editingUser = '';
+  $('u_email').value = ''; $('u_name').value = ''; $('u_role').value = 'Seller'; $('u_role').disabled = false;
+  $('uSubmit').textContent = '+ Add user'; $('uCancel').style.display = 'none';
+}
+function editUser(email) {
+  const u = (S.users || []).find(x => x.email === email);
+  if (!u) return;
+  S.editingUser = u.email;
+  $('u_email').value = u.email; $('u_name').value = u.name; $('u_role').value = u.role;
+  $('u_role').disabled = (S.user && u.email === S.user.email);   // can't drop your own admin role
+  $('uSubmit').textContent = 'Save changes'; $('uCancel').style.display = '';
+  $('u_name').focus();
+}
 function openUsers() {
   if (!S.admin) return;
-  $('u_email').value = ''; $('u_name').value = ''; $('u_role').value = 'Seller';
+  cancelEditUser();
   renderUsers();
   $('usersModal').classList.add('open');
   document.body.classList.add('noscroll');
@@ -869,6 +883,7 @@ function renderUsers() {
     <div class="urow">
       <div class="ui"><div class="un">${esc(u.name)}</div><div class="ue">${esc(u.email)}</div></div>
       <span class="role ${u.role === 'Admin' ? 'admin' : ''}">${esc(u.role)}</span>
+      <button class="icon" title="Edit" onclick="editUser('${esc(u.email)}')">✎</button>
       ${u.email === me ? '<span class="icon" title="You">👤</span>' : `<button class="icon" title="Remove" onclick="removeUser('${esc(u.email)}')">🗑</button>`}
     </div>`).join('') || '<div class="empty">No users yet</div>';
 }
@@ -877,12 +892,19 @@ function addUser(e) {
   const u = { email: $('u_email').value.trim().toLowerCase(), name: $('u_name').value.trim().replace(/\s+/g, ' '), role: $('u_role').value };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email)) return toast('Email is not valid', true);
   if (!u.name) return toast('Name is required', true);
+  const old = S.editingUser || '';
+  if (old && S.user && old === S.user.email) { u.role = 'Admin'; if (u.email !== old) return toast('You cannot change your own email', true); }
   const backup = (S.users || []).slice();
-  S.users = backup.filter(x => x.email !== u.email).concat([u]);
+  S.users = backup.filter(x => x.email !== u.email && x.email !== old).concat([u]);
   renderUsers();
-  $('u_email').value = ''; $('u_name').value = '';
-  api('addUser', { user: u })
-    .then(list => { S.users = list; if (!S.sellers.includes(u.name)) S.sellers.push(u.name); renderUsers(); saveCache(); toast(u.name + ' saved'); })
+  cancelEditUser();
+  api('addUser', { user: u, oldEmail: old })
+    .then(list => {
+      S.users = list;
+      if (!S.sellers.includes(u.name)) S.sellers.push(u.name);
+      if (S.user && u.email === S.user.email) { S.user.name = u.name; $('whoName').textContent = u.name; }
+      renderUsers(); saveCache(); toast(u.name + (old ? ' updated' : ' added'));
+    })
     .catch(err => { S.users = backup; renderUsers(); toast(err.message, true); });
 }
 function removeUser(email) {
