@@ -606,7 +606,7 @@ function statusCell(r) {
 function adminButtons(r) {
   if (!S.admin || r.pending) return '';
   const canHold = !['Fulfilled', 'Cancelled'].includes(r.status);
-  return `${canHold ? `<button class="icon" title="Start hold (max 48h)" onclick="holdRequest('${esc(r.id)}')">⏱</button>` : ''}
+  return `${canHold ? `<button class="icon" title="Start 48h hold" onclick="holdRequest('${esc(r.id)}')">⏱</button>` : ''}
           <button class="icon" title="Edit" onclick="openForm('${esc(r.id)}')">✎</button>
           <button class="icon" title="Delete" onclick="removeRow('${esc(r.id)}')">🗑</button>`;
 }
@@ -754,12 +754,13 @@ function changeStatus(id, status) {
   if (!S.admin) return;
   const r = S.rows.find(x => x.id === id);
   if (!r) return;
-  const old = r.status;
+  const old = r.status, oldHold = r.holdUntil;
   r.status = status;
+  if (status === 'For Release' && old !== 'For Release') { r.holdUntil = Date.now() + HOLD_MAX * 3600000; r.releasedAt = 0; }
   render();
   api('status', { id: id, status: status })
-    .then(() => toast(id + ' → ' + status))
-    .catch(err => { r.status = old; render(); toast(err.message, true); });
+    .then(res => { if (res && 'holdUntil' in res) { r.holdUntil = res.holdUntil; render(); } toast(id + ' → ' + status + (status === 'For Release' && old !== 'For Release' ? ` (${HOLD_MAX}h hold started)` : '')); })
+    .catch(err => { r.status = old; r.holdUntil = oldHold; render(); toast(err.message, true); });
 }
 
 function removeRow(id) {
@@ -796,9 +797,8 @@ function holdRequest(id) {
   if (!S.admin) return;
   const r = S.rows.find(x => x.id === id);
   if (!r) return;
-  const ans = prompt(`Hold ${r.handset} (${r.color}) for ${r.first} ${r.last}.\nHow many hours? (1–${HOLD_MAX})`, String(HOLD_MAX));
-  if (ans === null) return;
-  const hours = Math.max(1, Math.min(HOLD_MAX, Math.round(Number(ans) || HOLD_MAX)));
+  if (!confirm(`Start a ${HOLD_MAX}-hour hold for ${r.first} ${r.last}?\n${r.handset} (${r.color})\n\nIt expires automatically after ${HOLD_MAX} hours.`)) return;
+  const hours = HOLD_MAX;
   const backup = { ...r };
   r.status = 'For Release'; r.holdUntil = Date.now() + hours * 3600000; r.releasedAt = 0;
   render();
