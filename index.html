@@ -273,7 +273,7 @@ label .req{color:var(--ca)}
 </div>
 
 <!-- Sign in -->
-<div class="screen" id="loginScreen">
+<div class="screen open" id="loginScreen">
   <div class="sbox">
     <img class="slogo" id="slogo" alt="Logo">
     <h2>Handset Pre-Order Tracker</h2>
@@ -377,7 +377,7 @@ function gisReady() {
   try { saved = sessionStorage.getItem(TOKEN_KEY) || ''; } catch (e) {}
   if (saved) { try { setToken(saved); } catch (e) { clearToken(); } }
 
-  if (tokenValid()) loadApp();
+  if (tokenValid()) { $('loginScreen').classList.remove('open'); loadApp(); }
   else requestSignIn();
 }
 
@@ -390,10 +390,15 @@ function requestSignIn() {
 function onCredential(resp) {
   if (!resp || !resp.credential) { $('loginErr').textContent = 'Sign-in failed, please try again.'; return; }
   setToken(resp.credential);
+  const em = String(AUTH.profile.email || '').toLowerCase();
+  if (S.loaded && S.user && S.user.email !== em) {   // different account: drop preloaded data
+    S.loaded = false; S.fresh = false; S.rows = [];
+    $('app').style.display = 'none'; $('loading').style.display = '';
+  }
   $('loginScreen').classList.remove('open');
   const w = AUTH.waiting.splice(0);
   w.forEach(fn => fn(AUTH.token));
-  if (!S.loaded) loadApp();
+  if (!S.fresh && !S.fetching) loadApp();
 }
 
 function ensureToken() {
@@ -405,7 +410,7 @@ function logout(silent) {
   if (!silent && !confirm('Sign out?')) return;
   try { google.accounts.id.disableAutoSelect(); } catch (e) {}
   clearToken();
-  try { localStorage.removeItem(CACHE_KEY()); } catch (e) {}
+  try { localStorage.removeItem(CACHE_KEY()); localStorage.removeItem('hpo_cache_' + ((S.user && S.user.email) || '')); localStorage.removeItem('hpo_last'); } catch (e) {}
   location.reload();
 }
 
@@ -434,17 +439,23 @@ function showDenied(email) {
 }
 
 /* ================= Load ================= */
-const CACHE_KEY = () => 'hpo_cache_' + ((AUTH.profile && AUTH.profile.email) || '');
+const CACHE_KEY = () => 'hpo_cache_' + String((AUTH.profile && AUTH.profile.email) || '').toLowerCase();
 function saveCache() {
   if (!S.loaded || !S.user) return;
-  try { localStorage.setItem(CACHE_KEY(), JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, rows: S.rows.filter(r => !r.pending) })); } catch (e) {}
+  try {
+    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, rows: S.rows.filter(r => !r.pending) }));
+    localStorage.setItem('hpo_last', S.user.email);
+  } catch (e) {}
 }
 function loadApp() {
   let cached = null;
   try { cached = JSON.parse(localStorage.getItem(CACHE_KEY()) || 'null'); } catch (e) {}
-  if (cached && cached.user) init(cached);          // show last data instantly, refresh below
-  else $('loading').textContent = 'Loading…';
-  api('init').then(init).catch(e => { if (e.message !== 'Access denied' && !S.loaded) $('loading').textContent = e.message; });
+  if (cached && cached.user && !S.loaded) init(cached);   // show last data instantly, refresh below
+  else if (!S.loaded) $('loading').textContent = 'Loading…';
+  S.fetching = true;
+  api('init').then(d => { S.fresh = true; init(d); })
+    .catch(e => { if (e.message !== 'Access denied' && !S.loaded) $('loading').textContent = e.message; })
+    .finally(() => { S.fetching = false; });
 }
 
 function init(d) {
@@ -724,6 +735,15 @@ function toast(msg, err) {
   tTimer = setTimeout(() => t.style.display = 'none', 3200);
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeForm(); });
+
+/* ================= Prepare last data behind the sign-in screen ================= */
+(function preload() {
+  try {
+    const last = localStorage.getItem('hpo_last');
+    const cached = last && JSON.parse(localStorage.getItem('hpo_cache_' + last) || 'null');
+    if (cached && cached.user && !S.loaded) init(cached);
+  } catch (e) {}
+})();
 </script>
 </body>
 </html>
