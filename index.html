@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0b1f4d">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="preconnect" href="https://accounts.google.com">
 <title>Handset Pre-Order Unified Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer onload="gisReady()"></script>
@@ -402,6 +405,7 @@ function logout(silent) {
   if (!silent && !confirm('Sign out?')) return;
   try { google.accounts.id.disableAutoSelect(); } catch (e) {}
   clearToken();
+  try { localStorage.removeItem(CACHE_KEY()); } catch (e) {}
   location.reload();
 }
 
@@ -430,9 +434,17 @@ function showDenied(email) {
 }
 
 /* ================= Load ================= */
+const CACHE_KEY = () => 'hpo_cache_' + ((AUTH.profile && AUTH.profile.email) || '');
+function saveCache() {
+  if (!S.loaded || !S.user) return;
+  try { localStorage.setItem(CACHE_KEY(), JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, rows: S.rows.filter(r => !r.pending) })); } catch (e) {}
+}
 function loadApp() {
-  $('loading').textContent = 'Loading…';
-  api('init').then(init).catch(e => { if (e.message !== 'Access denied') $('loading').textContent = e.message; });
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(CACHE_KEY()) || 'null'); } catch (e) {}
+  if (cached && cached.user) init(cached);          // show last data instantly, refresh below
+  else $('loading').textContent = 'Loading…';
+  api('init').then(init).catch(e => { if (e.message !== 'Access denied' && !S.loaded) $('loading').textContent = e.message; });
 }
 
 function init(d) {
@@ -465,6 +477,7 @@ function init(d) {
   fill($('fl_seller'), S.sellers, 'All sellers', true);
   fill($('fl_type'), S.types, 'All types', true);
 
+  $('fl_status').value = S.filter.status; $('fl_seller').value = S.filter.seller; $('fl_type').value = S.filter.type;
   $('btnNew').style.display = '';
   $('fab').style.display = '';
   $('loading').style.display = 'none';
@@ -479,7 +492,7 @@ function fill(sel, list, placeholder, allowEmpty) {
 }
 
 /* ================= Render ================= */
-function render() { renderKpis(); renderTop(); renderTable(); renderLists(); }
+function render() { renderKpis(); renderTop(); renderTable(); renderLists(); saveCache(); }
 
 function renderKpis() {
   const units = rows => rows.reduce((a, r) => a + (Number(r.qty) || 0), 0);
