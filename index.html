@@ -119,6 +119,9 @@ label .req{color:var(--ca)}
 .sbox .em{font-weight:700;color:var(--ink);word-break:break-all}
 .gbtn{display:flex;justify-content:center;min-height:44px}
 .serr{color:var(--ca);font-size:13px;margin-top:12px;min-height:18px}
+.lbusy{display:none;align-items:center;justify-content:center;gap:10px;min-height:44px;color:var(--ink);font-weight:700}
+.spin{width:22px;height:22px;border:3px solid #dbe4f7;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-weight:500;display:none;z-index:70;max-width:90vw}
@@ -280,6 +283,7 @@ label .req{color:var(--ca)}
     <div class="sub2">Centralized Store Request Monitoring</div>
     <p>Sign in with your Google account to continue.</p>
     <div class="gbtn" id="gbtn"></div>
+    <div class="lbusy" id="loginBusy"><span class="spin"></span>Loading your data…</div>
     <div class="serr" id="loginErr"></div>
   </div>
 </div>
@@ -381,7 +385,12 @@ function gisReady() {
   else requestSignIn();
 }
 
+function setLoginBusy(on) {
+  $('loginBusy').style.display = on ? 'flex' : 'none';
+  $('gbtn').style.display = on ? 'none' : 'flex';
+}
 function requestSignIn() {
+  setLoginBusy(false);
   $('loginErr').textContent = '';
   $('loginScreen').classList.add('open');
   google.accounts.id.prompt();
@@ -395,7 +404,8 @@ function onCredential(resp) {
     S.loaded = false; S.fresh = false; S.rows = [];
     $('app').style.display = 'none'; $('loading').style.display = '';
   }
-  $('loginScreen').classList.remove('open');
+  if (S.loaded) $('loginScreen').classList.remove('open');   // data already prepared: show it now
+  else setLoginBusy(true);                                   // keep sign-in card, load data in parallel
   const w = AUTH.waiting.splice(0);
   w.forEach(fn => fn(AUTH.token));
   if (!S.fresh && !S.fetching) loadApp();
@@ -453,9 +463,12 @@ function loadApp() {
   if (cached && cached.user && !S.loaded) init(cached);   // show last data instantly, refresh below
   else if (!S.loaded) $('loading').textContent = 'Loading…';
   S.fetching = true;
-  api('init').then(d => { S.fresh = true; init(d); })
-    .catch(e => { if (e.message !== 'Access denied' && !S.loaded) $('loading').textContent = e.message; })
-    .finally(() => { S.fetching = false; });
+  api('init').then(d => { S.fresh = true; init(d); $('loginScreen').classList.remove('open'); })
+    .catch(e => {
+      if (e.message === 'Access denied') return;
+      if (!S.loaded) { $('loading').textContent = e.message; $('loginErr').textContent = e.message; }
+    })
+    .finally(() => { S.fetching = false; setLoginBusy(false); });
 }
 
 function init(d) {
