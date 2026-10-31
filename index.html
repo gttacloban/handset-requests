@@ -1906,7 +1906,7 @@ function submitForm(e) {
       setRequestSaving(false, '');
       closeForm();
       render();
-      toast(editing ? '✓ Request updated successfully' : '✓ Request ' + saved.id + ' saved successfully');
+      // Confirmation is already shown during the save flow; avoid a duplicate popup.
     })
     .catch(err => {
       // The form and its data remain available. Repeating Save is safe when
