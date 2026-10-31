@@ -258,7 +258,7 @@ input[readonly]{background:var(--bg);cursor:default}
       <aside class="panel">
         <h3>Available Units</h3>
         <ul class="top" id="avail"></ul>
-        <div class="note" style="margin-bottom:16px">Released after the hold time ended — available for the next customer.</div>
+        <div class="note" style="margin-bottom:16px">Hold Expired—now available for the next customer</div>
         <h3>Most Requested (open)</h3>
         <ul class="top" id="top"></ul>
         <div class="note">Units not yet Fulfilled or Cancelled, by handset and color.</div>
@@ -793,7 +793,7 @@ function holdChip(r) {
   }
   if (isLapsed(r.status)) {
     const when = r.releasedAt ? new Date(r.releasedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-    return `<span class="hold off">${r.reassignedTo ? 'Unit → ' + esc(r.reassignedTo) : 'Unit released' + (when ? ' · ' + esc(when) : '')}</span>`;
+    return `<span class="hold off">${r.reassignedTo ? 'Unit → ' + esc(r.reassignedTo) : 'Hold Expired' + (when ? ' · ' + esc(when) : '')}</span>`;
   }
   return '';
 }
