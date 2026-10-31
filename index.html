@@ -1896,7 +1896,7 @@ function submitForm(e) {
 
   // Never show a request as confirmed until Google Sheets has responded.
   // The same clientSaveId is retained if an uncertain request needs a retry.
-  setRequestSaving(true, 'Saving to Google Sheets… Please keep this form open.');
+  setRequestSaving(true, 'Saving… Please keep this form open.');
   api('save', { data: o })
     .then(saved => {
       if (!saved || !saved.id) throw new Error('The server did not confirm the save. Please try again.');
@@ -1933,7 +1933,7 @@ function changeStatus(id, status) {
 function removeRow(id) {
   if (!S.admin) return;
   const r = S.rows.find(x => x.id === id);
-  if (!r || !confirm(`Delete request ${id} (${r.first} ${r.last})?`)) return;
+  if (!r) return;
   const i = S.rows.indexOf(r);
   S.rows.splice(i, 1);
   render();
@@ -2076,7 +2076,7 @@ function addUser(e) {
 }
 function removeUser(email) {
   const u = (S.users || []).find(x => x.email === email);
-  if (!u || !confirm(`Remove ${u.name} (${u.email})?\nThey will no longer be able to sign in.`)) return;
+  if (!u) return;
   const backup = S.users.slice();
   S.users = S.users.filter(x => x.email !== email);
   renderUsers();
@@ -2176,7 +2176,7 @@ function submitUpdate(event) {
 function removeUpdate(id) {
   if (!S.admin || !S.updatesReady || S.updatesPending) return;
   const row = S.updates.find(u => u.id === id);
-  if (!row || !confirm(`Delete the update "${row.title}" for all sellers?`)) return;
+  if (!row) return;
   S.updatesPending = true;
   api('manageUpdate', { mode: 'delete', id })
     .then(data => { applyUpdates(data); toast('Update deleted for all sellers.'); })
