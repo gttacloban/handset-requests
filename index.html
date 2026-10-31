@@ -215,7 +215,7 @@ input[readonly]{background:var(--bg);cursor:default}
     <div>
       <h1>Handset Pre-Order Unified Tracker</h1>
       <div class="sub">Centralized Store Request Monitoring</div>
-      <div class="tags">Request Monitoring • Stock Allocation • Delivery Updates • Customer Follow-up</div>
+      <div class="tags">Handset Updates</div>
     </div>
     <div class="hright">
       <button class="who" id="who" style="display:none" onclick="logout()" title="Sign out">
@@ -353,11 +353,15 @@ const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: f
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-const CLOSED = ['Fulfilled', 'Cancelled', 'Expired'];
+const CLOSED = ['Fulfilled', 'Cancelled', 'Expired', 'Lapsed'];
+// Show the requested new name without breaking older records or backend data.
+const statusLabel = s => s === 'Expired' ? 'Lapsed' : s;
+const sameStatus = (a, b) => statusLabel(a) === statusLabel(b);
+const isLapsed = s => s === 'Expired' || s === 'Lapsed';
 const TOKEN_KEY = 'hpo_id_token';
 
 function statusKey(s) {
-  return { 'Awaiting Unit': 'aw', 'Awaiting Handset': 'aw', 'For Release': 'fr', 'Fulfilled': 'fu', 'Cancelled': 'ca', 'Expired': 'ex' }[s] || 'ot';
+  return { 'Awaiting Unit': 'aw', 'Awaiting Handset': 'aw', 'For Release': 'fr', 'Fulfilled': 'fu', 'Cancelled': 'ca', 'Expired': 'ex', 'Lapsed': 'ex' }[s] || 'ot';
 }
 function today() {
   const d = new Date(), p = n => String(n).padStart(2, '0');
@@ -531,8 +535,8 @@ function init(d) {
   $('btnUsers').style.display = S.admin ? '' : 'none';
 
   fill($('f_type'), S.types, 'Select type');
-  fill($('f_status'), S.statuses);
-  fill($('fl_status'), S.statuses, 'All statuses', true);
+  fill($('f_status'), S.statuses, '', false, true);
+  fill($('fl_status'), S.statuses, 'All statuses', true, true);
   fill($('fl_seller'), S.sellers, 'All sellers', true);
   fill($('fl_type'), S.types, 'All types', true);
 
@@ -544,9 +548,9 @@ function init(d) {
   render();
 }
 
-function fill(sel, list, placeholder, allowEmpty) {
+function fill(sel, list, placeholder, allowEmpty, isStatus) {
   sel.innerHTML = (placeholder ? `<option value="">${esc(placeholder)}</option>` : '') +
-    list.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    list.map(v => `<option value="${esc(v)}">${esc(isStatus ? statusLabel(v) : v)}</option>`).join('');
   if (placeholder && !allowEmpty) sel.options[0].disabled = true;
 }
 
@@ -556,7 +560,7 @@ function render() { renderKpis(); renderAvail(); renderTop(); renderTable(); ren
 function renderKpis() {
   const units = rows => rows.reduce((a, r) => a + (Number(r.qty) || 0), 0);
   const cards = [{ key: '', label: 'Total Requests', c: 'var(--brand)', rows: S.rows }]
-    .concat(S.statuses.map(s => ({ key: s, label: s, c: `var(--${statusKey(s)})`, rows: S.rows.filter(r => r.status === s) })));
+    .concat(S.statuses.map(s => ({ key: s, label: statusLabel(s), c: `var(--${statusKey(s)})`, rows: S.rows.filter(r => sameStatus(r.status, s)) })));
   $('kpis').innerHTML = cards.map(k => `
     <div class="kpi ${S.filter.status === k.key && k.key ? 'active' : ''}" style="--c:${k.c}" onclick="kpiClick('${esc(k.key)}')">
       <div class="l">${esc(k.label)}</div>
@@ -588,7 +592,7 @@ function renderTop() {
 function filtered() {
   const f = S.filter, q = norm(f.q);
   return S.rows.filter(r =>
-    (!f.status || r.status === f.status) &&
+    (!f.status || sameStatus(r.status, f.status)) &&
     (!f.seller || r.seller === f.seller) &&
     (!f.type || r.type === f.type) &&
     (!q || norm([r.id, r.first, r.last, r.mobile, r.handset, r.color, r.remarks].join(' ')).includes(q))
@@ -598,8 +602,8 @@ function filtered() {
 function statusCell(r) {
   const sk = statusKey(r.status);
   const style = `background:var(--${sk}-bg);color:var(--${sk}-ink)`;
-  if (!S.admin || r.pending) return `<span class="st" style="${style}">${esc(r.status)}</span>`;
-  const opts = S.statuses.map(s => `<option ${s === r.status ? 'selected' : ''}>${esc(s)}</option>`).join('');
+  if (!S.admin || r.pending) return `<span class="st" style="${style}">${esc(statusLabel(r.status))}</span>`;
+  const opts = S.statuses.map(s => `<option value="${esc(s)}" ${sameStatus(s, r.status) ? 'selected' : ''}>${esc(statusLabel(s))}</option>`).join('');
   return `<select class="st" style="${style}" onchange="changeStatus('${esc(r.id)}',this.value)">${opts}</select>`;
 }
 
@@ -676,12 +680,12 @@ function openForm(id) {
   $('f_type').value = r ? r.type : '';
   $('f_seller').value = r ? r.seller : S.user.name;
   $('f_wl').value = r ? r.waitlist : '';
-  $('f_status').value = r ? r.status : firstStatus();
+  $('f_status').value = r ? (S.statuses.find(s => sameStatus(s, r.status)) || r.status) : firstStatus();
   $('f_remarks').value = r ? r.remarks : '';
 
   document.querySelectorAll('.adminonly').forEach(el => el.style.display = S.admin ? '' : 'none');
   document.querySelectorAll('.selleronly').forEach(el => el.style.display = S.admin ? 'none' : '');
-  $('sellerNote').innerHTML = `New requests are saved as <b>${esc(firstStatus())}</b> and get a waitlist # automatically. After saving, only the admin can edit or change the status.`;
+  $('sellerNote').innerHTML = `New requests are saved as <b>${esc(statusLabel(firstStatus()))}</b> and get a waitlist # automatically. After saving, only the admin can edit or change the status.`;
 
   $('modal').classList.add('open');
   document.body.classList.add('noscroll');
@@ -759,7 +763,7 @@ function changeStatus(id, status) {
   if (status === 'For Release' && old !== 'For Release') { r.holdUntil = Date.now() + HOLD_MAX * 3600000; r.releasedAt = 0; }
   render();
   api('status', { id: id, status: status })
-    .then(res => { if (res && 'holdUntil' in res) { r.holdUntil = res.holdUntil; render(); } toast(id + ' → ' + status + (status === 'For Release' && old !== 'For Release' ? ` (${HOLD_MAX}h hold started)` : '')); })
+    .then(res => { if (res && 'holdUntil' in res) { r.holdUntil = res.holdUntil; render(); } toast(id + ' → ' + statusLabel(status) + (status === 'For Release' && old !== 'For Release' ? ` (${HOLD_MAX}h hold started)` : '')); })
     .catch(err => { r.status = old; r.holdUntil = oldHold; render(); toast(err.message, true); });
 }
 
@@ -787,7 +791,7 @@ function holdChip(r) {
     const left = r.holdUntil - Date.now();
     return `<span class="hold ${left < 6 * 3600000 ? 'urgent' : ''}" data-until="${r.holdUntil}">⏱ ${leftText(left)}</span>`;
   }
-  if (r.status === 'Expired') {
+  if (isLapsed(r.status)) {
     const when = r.releasedAt ? new Date(r.releasedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     return `<span class="hold off">${r.reassignedTo ? 'Unit → ' + esc(r.reassignedTo) : 'Unit released' + (when ? ' · ' + esc(when) : '')}</span>`;
   }
@@ -797,7 +801,7 @@ function holdRequest(id) {
   if (!S.admin) return;
   const r = S.rows.find(x => x.id === id);
   if (!r) return;
-  if (!confirm(`Start a ${HOLD_MAX}-hour hold for ${r.first} ${r.last}?\n${r.handset} (${r.color})\n\nIt expires automatically after ${HOLD_MAX} hours.`)) return;
+  if (!confirm(`Start a ${HOLD_MAX}-hour hold for ${r.first} ${r.last}?\n${r.handset} (${r.color})\n\nThe hold lapses automatically after ${HOLD_MAX} hours.`)) return;
   const hours = HOLD_MAX;
   const backup = { ...r };
   r.status = 'For Release'; r.holdUntil = Date.now() + hours * 3600000; r.releasedAt = 0;
@@ -814,7 +818,7 @@ function holdRequest(id) {
 }
 function renderAvail() {
   const map = {};
-  S.rows.filter(r => r.status === 'Expired' && !r.reassignedTo).forEach(r => {
+  S.rows.filter(r => isLapsed(r.status) && !r.reassignedTo).forEach(r => {
     const k = norm(r.handset) + '|' + norm(r.color);
     if (!map[k]) map[k] = { handset: r.handset, color: r.color, units: 0 };
     map[k].units += Number(r.qty) || 1;
