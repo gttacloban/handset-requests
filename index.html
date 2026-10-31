@@ -845,6 +845,63 @@ html, body { width:100%; max-width:100%; overflow-x:clip; }
 }
 
 
+/* Theme-aware in-app notifications.  Errors remain visible and readable in all modes. */
+.toast{
+  box-sizing:border-box;
+  min-height:44px;
+  width:max-content;
+  max-width:min(560px,calc(100vw - 32px));
+  overflow-wrap:anywhere;
+  text-align:start;
+  line-height:1.45;
+  font-size:13px;
+  font-weight:700;
+  border:1px solid transparent;
+  box-shadow:0 12px 32px rgba(14,27,55,.18);
+}
+/* Default Mode: a pale-red alert instead of a mismatched solid-red bar. */
+:root[data-theme="default"] .toast.err,
+:root:not([data-theme]) .toast.err{
+  background:#fff0f1;
+  color:#8f2034;
+  border-color:#f5a9b8;
+  box-shadow:0 10px 26px rgba(113,35,56,.16);
+}
+/* Dark Mode: an accessible dark alert that matches the navy panels. */
+:root[data-theme="dark"] .toast.err{
+  background:#372338;
+  color:#ffe0e7;
+  border-color:#98506b;
+  box-shadow:0 12px 30px rgba(0,0,0,.4);
+}
+/* Digital Globe Mode: translucent navy/plum glass over the globe imagery. */
+:root[data-theme="globe"] .toast.err{
+  background:rgba(27,29,55,.96);
+  color:#ffe6eb;
+  border-color:rgba(255,137,161,.65);
+  box-shadow:0 12px 36px rgba(0,0,0,.52),0 0 0 1px rgba(102,172,255,.14);
+  -webkit-backdrop-filter:blur(12px);
+  backdrop-filter:blur(12px);
+}
+.toast.err{position:fixed;padding:13px 18px 13px 51px;}
+.toast.err::before{
+  content:"!";
+  position:absolute;
+  top:50%;left:15px;transform:translateY(-50%);
+  display:grid;place-items:center;
+  width:24px;height:24px;border-radius:50%;
+  background:#bb324f;color:#fff;
+  font-size:16px;font-weight:900;line-height:1;
+}
+:root[data-theme="dark"] .toast.err::before,
+:root[data-theme="globe"] .toast.err::before{background:#f16f8e;color:#17213c;}
+/* Non-error notifications also harmonize with the chosen appearance. */
+:root[data-theme="dark"] .toast:not(.err){background:#263854;color:#eaf2ff;border-color:#526783;}
+:root[data-theme="globe"] .toast:not(.err){background:rgba(19,42,76,.96);color:#f0f7ff;border-color:rgba(121,189,249,.48);}
+@media(max-width:700px){
+  .toast{max-width:calc(100vw - 24px);font-size:13px;}
+}
+
 /* Globe logo in the user badge (Admin and Seller, all appearance modes). */
 .topbar .avatar, :root:is([data-theme="dark"],[data-theme="globe"]) .topbar .avatar {
   background:transparent;
@@ -1938,7 +1995,7 @@ function removeRow(id) {
   S.rows.splice(i, 1);
   render();
   api('delete', { id: id })
-    .then(() => toast('Request ' + id + ' deleted'))
+    .then(() => { /* Deleted successfully; table already updated. */ })
     .catch(err => { S.rows.splice(i, 0, r); render(); toast(err.message, true); });
 }
 
@@ -2081,7 +2138,7 @@ function removeUser(email) {
   S.users = S.users.filter(x => x.email !== email);
   renderUsers();
   api('deleteUser', { email: email })
-    .then(list => { S.users = list; renderUsers(); saveCache(); toast(u.name + ' removed'); })
+    .then(list => { S.users = list; renderUsers(); saveCache(); })
     .catch(err => { S.users = backup; renderUsers(); toast(err.message, true); });
 }
 
@@ -2179,7 +2236,7 @@ function removeUpdate(id) {
   if (!row) return;
   S.updatesPending = true;
   api('manageUpdate', { mode: 'delete', id })
-    .then(data => { applyUpdates(data); toast('Update deleted for all sellers.'); })
+    .then(data => { applyUpdates(data); })
     .catch(e => toast('Could not delete: ' + e.message,true))
     .finally(() => { S.updatesPending = false; });
 }
@@ -2201,9 +2258,11 @@ function toast(msg, err) {
   const t = $('toast');
   t.textContent = msg;
   t.className = 'toast' + (err ? ' err' : '');
+  t.setAttribute('role', err ? 'alert' : 'status');
+  t.setAttribute('aria-live', err ? 'assertive' : 'polite');
   t.style.display = 'block';
   clearTimeout(tTimer);
-  tTimer = setTimeout(() => t.style.display = 'none', 3200);
+  tTimer = setTimeout(() => t.style.display = 'none', err ? 5500 : 3200);
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeColorDropdown(); closeForm(); closeUsers(); } });
 
