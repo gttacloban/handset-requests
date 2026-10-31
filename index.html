@@ -121,7 +121,12 @@ label{font-size:13px;font-weight:700;color:var(--muted);display:block;margin-bot
 label .req{color:var(--ca)}
 .hint{font-size:11px;color:var(--muted)}
 .sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
-.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.form-save-message{font-size:12px;align-self:center;flex:1 1 100%;color:var(--muted);line-height:1.35}
+.form-save-message[hidden]{display:none}
+.form-save-message.error{color:var(--ca-ink)}
+.form-save-message.success{color:var(--fu-ink)}
+#btnSave:disabled{cursor:wait;opacity:.7}
 .color-label-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 /* Custom color choices: allow an admin-only delete X next to each saved color. */
 .color-picker{position:relative;min-width:0}
@@ -839,6 +844,17 @@ html, body { width:100%; max-width:100%; overflow-x:clip; }
   header.topbar .hright { min-width:0; max-width:100%; flex-wrap:wrap; justify-content:flex-end; }
 }
 
+
+/* Globe logo in the user badge (Admin and Seller, all appearance modes). */
+.topbar .avatar, :root:is([data-theme="dark"],[data-theme="globe"]) .topbar .avatar {
+  background:transparent;
+  box-shadow:none;
+  padding:0;
+}
+.topbar .avatar img {
+  width:100%;height:100%;object-fit:contain;border-radius:50%;
+}
+
 </style>
 </head>
 <body>
@@ -1082,7 +1098,8 @@ html, body { width:100%; max-width:100%; overflow-x:clip; }
       <div class="full"><label>Remarks</label><textarea id="f_remarks" rows="2"></textarea></div>
     </div>
     <div class="actions">
-      <button type="button" class="btn btn-light" onclick="closeForm()">Cancel</button>
+      <div id="formSaveMessage" class="form-save-message" role="status" aria-live="polite" hidden></div>
+      <button type="button" class="btn btn-light" id="btnCancelRequest" onclick="closeForm()">Cancel</button>
       <button type="submit" class="btn btn-primary" id="btnSave">Save</button>
     </div>
   </form>
@@ -1143,7 +1160,7 @@ const CONFIG = {
 /* ========================================== */
 
 const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: false, loaded: false,
-  page: 1, pageSize: 5,
+  page: 1, pageSize: 5, saving: false, saveClientId: '', editVersion: 0,
   filter: { q: '', status: '', seller: '', type: '', category: '', dateFrom: '', dateTo: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false, updates: [], updatesReady: false, updatesPending: false, updatesRefreshing: false, updatesExpanded: false, updateEditingId: '' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1272,7 +1289,7 @@ function ensureToken() {
 }
 
 function logout(silent) {
-  if (!silent && !confirm('Sign out?')) return;
+  // Sign out immediately without a browser confirmation dialog.
   try { google.accounts.id.disableAutoSelect(); } catch (e) {}
   clearToken();
   try { localStorage.removeItem(CACHE_KEY()); localStorage.removeItem('hpo_cache_' + ((S.user && S.user.email) || '')); localStorage.removeItem('hpo_last'); } catch (e) {}
@@ -1337,9 +1354,11 @@ function init(d) {
   if (Array.isArray(d.updates)) S.updates = d.updates;
   // Embedded Globe logo is authoritative; ignore legacy server logo data.
 
-  // Signed-in user chip
-  const pic = AUTH.profile && AUTH.profile.picture;
-  $('avatar').innerHTML = pic ? `<img src="${esc(pic)}" alt="" referrerpolicy="no-referrer">` : esc((d.user.name || d.user.email).charAt(0).toUpperCase());
+  // Signed-in user chip: show the embedded Globe logo rather than an initial/profile photo.
+  const globeIcon = document.querySelector('link[rel="icon"]');
+  $('avatar').innerHTML = globeIcon
+    ? `<img src="${esc(globeIcon.href)}" alt="Globe logo">`
+    : esc((d.user.name || d.user.email).charAt(0).toUpperCase());
   $('whoName').textContent = d.user.name;
   $('whoRole').textContent = (S.admin ? 'Admin' : 'Seller') + ' · ' + d.user.email;
   $('who').classList.toggle('admin', S.admin);
@@ -1776,10 +1795,35 @@ function clearDateRange() {
 }
 
 /* ================= Form ================= */
+function newSaveIdentifier() {
+  if (globalThis.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // Older supported browsers: secure random bytes instead of a timestamp.
+  const values = new Uint8Array(16);
+  crypto.getRandomValues(values);
+  return Array.from(values, b => b.toString(16).padStart(2, '0')).join('');
+}
+function setRequestSaving(isSaving, message, failed) {
+  S.saving = !!isSaving;
+  const form = $('form');
+  // Lock form controls so the payload cannot change while it is on the way.
+  form.querySelectorAll('input:not([type="hidden"]), select, textarea, button').forEach(el => {
+    el.disabled = !!isSaving;
+  });
+  $('btnSave').textContent = isSaving ? 'Saving…' : 'Save';
+  $('btnSave').setAttribute('aria-busy', String(!!isSaving));
+  const status = $('formSaveMessage');
+  status.hidden = !message;
+  status.textContent = message || '';
+  status.className = 'form-save-message' + (failed ? ' error' : '');
+}
 function openForm(id) {
+  if (S.saving) return; // Don't open another request before confirming the last save.
   const r = id ? S.rows.find(x => x.id === id) : null;
   if (r && !S.admin) return toast('Only the admin can edit. Please ask the admin.', true);
 
+  S.saveClientId = newSaveIdentifier();
+  S.editVersion = r ? (r.updatedAt || 0) : 0;
+  setRequestSaving(false, '');
   closeColorDropdown();
   refreshColorSettings();
   $('formTitle').textContent = r ? 'Edit Request ' + r.id : 'New Request';
@@ -1808,9 +1852,13 @@ function openForm(id) {
   if (window.innerWidth > 700) setTimeout(() => $('f_first').focus(), 50);
 }
 function closeForm() {
+  if (S.saving) return; // Also guards Escape and outside-modal clicks.
   closeColorDropdown();
   $('modal').classList.remove('open');
   document.body.classList.remove('noscroll');
+  S.saveClientId = '';
+  S.editVersion = 0;
+  setRequestSaving(false, '');
 }
 
 function localWaitlist(o) {
@@ -1825,6 +1873,7 @@ function localWaitlist(o) {
 
 function submitForm(e) {
   e.preventDefault();
+  if (S.saving) return;
   const o = {
     id: $('f_id').value, first: $('f_first').value.trim(), last: $('f_last').value.trim(),
     mobile: $('f_mobile').value.replace(/[\s\-()]/g, ''), date: $('f_date').value,
@@ -1834,7 +1883,8 @@ function submitForm(e) {
     seller: $('f_seller').value || S.user.name,
     waitlist: S.admin ? $('f_wl').value.trim() : '',
     status: S.admin ? $('f_status').value : firstStatus(),
-    remarks: $('f_remarks').value.trim()
+    remarks: $('f_remarks').value.trim(),
+    clientSaveId: S.saveClientId || (S.saveClientId = newSaveIdentifier())
   };
   if (!/^\+?\d{10,13}$/.test(o.mobile)) return toast('Mobile # is not valid', true);
   if (!o.type || !o.seller) return toast('Select transaction type and seller', true);
@@ -1842,32 +1892,27 @@ function submitForm(e) {
 
   const editing = !!o.id;
   if (editing && !S.admin) return toast('Only the admin can edit.', true);
-  let backup = null, tempId = null;
+  if (editing && S.editVersion) o.expectedUpdatedAt = S.editVersion;
 
-  if (editing) {
-    const i = S.rows.findIndex(r => r.id === o.id);
-    backup = { ...S.rows[i] };
-    S.rows[i] = { ...o, waitlist: o.waitlist || localWaitlist(o) };
-  } else {
-    tempId = 'tmp-' + Date.now();
-    S.rows.push({ ...o, id: tempId, waitlist: o.waitlist || localWaitlist({ ...o, id: tempId }), pending: true });
-  }
-  closeForm();
-  render();
-
-  api('save', { data: editing ? o : { ...o, id: '' } })
+  // Never show a request as confirmed until Google Sheets has responded.
+  // The same clientSaveId is retained if an uncertain request needs a retry.
+  setRequestSaving(true, 'Saving to Google Sheets… Please keep this form open.');
+  api('save', { data: o })
     .then(saved => {
-      const id = editing ? o.id : tempId;
-      const i = S.rows.findIndex(r => r.id === id);
-      if (i > -1) S.rows[i] = saved;
+      if (!saved || !saved.id) throw new Error('The server did not confirm the save. Please try again.');
+      const i = S.rows.findIndex(r => r.id === saved.id);
+      if (i >= 0) S.rows[i] = saved;
+      else S.rows.push(saved);
+      setRequestSaving(false, '');
+      closeForm();
       render();
-      toast(editing ? 'Request updated' : 'Request ' + saved.id + ' added');
+      toast(editing ? '✓ Request updated successfully' : '✓ Request ' + saved.id + ' saved successfully');
     })
     .catch(err => {
-      if (editing) { const i = S.rows.findIndex(r => r.id === o.id); if (i > -1) S.rows[i] = backup; }
-      else S.rows = S.rows.filter(r => r.id !== tempId);
-      render();
-      toast(err.message, true);
+      // The form and its data remain available. Repeating Save is safe when
+      // the new backend is deployed because the clientSaveId is unchanged.
+      setRequestSaving(false, 'Save not confirmed: ' + err.message + '. Your details are still here; you can retry.', true);
+      toast('Save not confirmed — please check the form.', true);
     });
 }
 
