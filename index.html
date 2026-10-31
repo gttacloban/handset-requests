@@ -124,6 +124,27 @@ label .req{color:var(--ca)}
 .color-manager .urow{padding:7px 0}
 .color-manager-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .color-manager-actions .btn{white-space:normal}
+/* Custom color choices: allow an admin-only delete X next to each saved color. */
+.color-picker{position:relative;min-width:0}
+.color-input-row{position:relative}
+.color-input-row input{padding-right:46px}
+.color-arrow{position:absolute;top:2px;right:2px;bottom:2px;width:42px;border:0;border-radius:8px;
+  background:transparent;color:var(--ink);font:inherit;font-size:21px;cursor:pointer}
+.color-arrow:hover{background:var(--bg)}
+.color-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.color-suggestions{position:absolute;z-index:30;top:calc(100% + 4px);left:0;right:0;
+  max-height:220px;overflow-y:auto;background:#fff;border:1px solid var(--line);
+  border-radius:11px;box-shadow:0 8px 20px rgba(11,31,77,.16)}
+.color-suggestions[hidden]{display:none}
+.color-choice-row{display:flex;align-items:center;border-bottom:1px solid var(--line)}
+.color-choice-row:last-child{border-bottom:0}
+.color-choice{flex:1;min-width:0;text-align:left;background:transparent;border:0;color:var(--ink);
+  font:inherit;padding:11px 12px;cursor:pointer;overflow-wrap:anywhere}
+.color-choice:hover,.color-choice:focus-visible{background:var(--bg);outline:none}
+.color-remove{flex:0 0 38px;margin-right:5px;min-height:36px;border:0;border-radius:7px;
+  background:transparent;color:var(--ca);font-size:23px;font-weight:700;line-height:1;cursor:pointer}
+.color-remove:hover,.color-remove:focus-visible{background:var(--ca-bg);outline:none}
+.color-suggestions-empty{padding:12px;color:var(--muted);font-size:13px}
 
 /* Sign-in / denied screens */
 .screen{position:fixed;inset:0;background:var(--brand);display:none;align-items:center;justify-content:center;
@@ -296,17 +317,25 @@ input[readonly]{background:var(--bg);cursor:default}
           <button type="button" class="color-tool-toggle adminonly" id="btnColors" onclick="toggleColorTools()"
             aria-controls="colorTools" aria-expanded="false" style="display:none" title="Manage color suggestions">🎨 Manage Colors</button>
         </div>
-        <input id="f_color" list="dl_color" autocomplete="off" required>
+        <div class="color-picker" id="colorPicker">
+          <div class="color-input-row">
+            <input id="f_color" autocomplete="off" required role="combobox"
+              aria-autocomplete="list" aria-controls="colorSuggestions" aria-expanded="false">
+            <button type="button" class="color-arrow" id="colorArrow" onclick="toggleColorDropdown()"
+              aria-label="Show color choices" aria-controls="colorSuggestions" aria-expanded="false">▾</button>
+          </div>
+          <div class="color-suggestions" id="colorSuggestions" aria-label="Color choices" hidden></div>
+        </div>
       </div>
       <div class="full color-manager" id="colorTools" aria-label="Manage color history">
         <div class="color-manager-heading">Color Suggestions <span class="hint">Admin only</span></div>
-        <div class="hint">Hide colors from this browser's suggestion list without deleting existing requests.</div>
+        <div class="hint">Hide colors for ALL sellers without changing previously saved requests.</div>
         <div class="ulist" id="colorList"></div>
         <div class="color-manager-actions">
           <button type="button" class="btn btn-light mini" onclick="clearColorHistory()">Clear All Suggestions</button>
           <button type="button" class="btn btn-light mini" onclick="restoreColorHistory()">Restore All</button>
         </div>
-        <div class="hint" style="margin-top:8px">Changes affect this browser only, not other staff devices.</div>
+        <div class="hint" style="margin-top:8px">Changes are shared with all sellers and refresh automatically while they use the tracker.</div>
       </div>
       <div><label>Quantity <span class="req">*</span></label><input id="f_qty" type="number" min="1" value="1" required></div>
       <div><label>Transaction Type <span class="req">*</span></label><select id="f_type" required></select></div>
@@ -366,7 +395,7 @@ input[readonly]{background:var(--bg);cursor:default}
 <button class="btn btn-primary fab" id="fab" onclick="openForm()" aria-label="New Request" style="display:none">+</button>
 
 <datalist id="dl_handset"></datalist>
-<datalist id="dl_color"></datalist>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -378,7 +407,7 @@ const CONFIG = {
 /* ========================================== */
 
 const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: false, loaded: false,
-  filter: { q: '', status: '', seller: '', type: '' } };
+  filter: { q: '', status: '', seller: '', type: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -521,7 +550,7 @@ const CACHE_KEY = () => 'hpo_cache_' + String((AUTH.profile && AUTH.profile.emai
 function saveCache() {
   if (!S.loaded || !S.user) return;
   try {
-    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending) }));
+    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined }));
     localStorage.setItem('hpo_last', S.user.email);
   } catch (e) {}
 }
@@ -542,6 +571,9 @@ function loadApp() {
 function init(d) {
   S.loaded = true;
   Object.assign(S, d);
+  // Color visibility always originates from the authenticated central backend.
+  S.colorSyncReady = Array.isArray(d.hiddenColors);
+  S.hiddenColors = S.colorSyncReady ? [...new Set(d.hiddenColors.map(norm).filter(Boolean))] : [];
   S.admin = !!d.user.admin;
   if (d.logo) showLogo(d.logo);
 
@@ -563,6 +595,7 @@ function init(d) {
   S.users = d.users || [];
   $('btnUsers').style.display = S.admin ? '' : 'none';
   $('btnColors').style.display = S.admin ? '' : 'none';
+  $('btnColors').title = S.colorSyncReady ? 'Manage colors for all sellers' : 'Requires backend ColorSync setup';
 
   fill($('f_type'), S.types, 'Select type');
   fill($('f_status'), S.statuses, '', false, true);
@@ -685,18 +718,52 @@ function renderTable() {
   $('count').textContent = `Showing ${list.length} of ${S.rows.length} request(s)`;
 }
 
-/* Suggested colors come from saved requests. Hidden colors are a local, non-destructive preference. */
-const HIDDEN_COLORS_KEY = 'hpo_hidden_colors_v1';
+/* Shared color visibility is stored in the Google Apps Script backend, not localStorage.
+   Only the authenticated server-side Admin may update it. */
 function hiddenColors() {
-  try {
-    const values = JSON.parse(localStorage.getItem(HIDDEN_COLORS_KEY) || '[]');
-    return new Set(Array.isArray(values) ? values.filter(x => typeof x === 'string') : []);
-  } catch (e) { return new Set(); }
+  return new Set((S.hiddenColors || []).map(norm));
 }
-function saveHiddenColors(values) {
-  try { localStorage.setItem(HIDDEN_COLORS_KEY, JSON.stringify([...values])); }
-  catch (e) { toast('Could not save the list in this browser.', true); }
+function applyColorSettings(data) {
+  if (!data || !Array.isArray(data.hiddenColors)) throw new Error('Color sync is not enabled in Google Apps Script.');
+  S.hiddenColors = [...new Set(data.hiddenColors.map(norm).filter(Boolean))];
+  S.colorSyncReady = true;
+  renderLists();
+  if (S.admin && $('colorTools').classList.contains('is-open')) renderColors();
+  saveCache();
 }
+function refreshColorSettings() {
+  if (!S.loaded || !S.colorSyncReady || S.colorWritePending || S.colorRefreshPending || !tokenValid()) return Promise.resolve();
+  S.colorRefreshPending = true;
+  return api('getColorSettings').then(applyColorSettings).catch(e => {
+    // Background sync errors should not erase the last server-confirmed list.
+    console.warn('Color synchronization error:', e);
+  }).finally(() => { S.colorRefreshPending = false; });
+}
+function updateSharedColorSettings(mode, color) {
+  if (!S.admin) return Promise.resolve();
+  if (!S.colorSyncReady) {
+    toast('Central color management is not installed in Google Apps Script yet.', true);
+    return Promise.resolve();
+  }
+  if (S.colorWritePending) return Promise.resolve();
+  S.colorWritePending = true;
+  return api('updateColorSettings', { mode, color: color || '' })
+    .then(data => {
+      applyColorSettings(data);
+      toast(mode === 'hide' ? color + ' removed for all sellers'
+        : mode === 'show' ? color + ' restored for all sellers'
+        : mode === 'hideAll' ? 'All color suggestions hidden for all sellers'
+        : 'All color suggestions restored for all sellers');
+    })
+    .catch(e => toast('Shared color change failed: ' + e.message, true))
+    .finally(() => { S.colorWritePending = false; });
+}
+// Refresh on reopening a tab, on returning to the tab, and periodically while active.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshColorSettings();
+});
+window.addEventListener('focus', refreshColorSettings);
+setInterval(() => { if (!document.hidden) refreshColorSettings(); }, 120000);
 function colorHistory() {
   const map = new Map();
   S.rows.forEach(r => {
@@ -708,12 +775,85 @@ function colorHistory() {
 function renderLists() {
   const uniq = k => [...new Set(S.rows.map(r => r[k]).filter(Boolean))].sort();
   $('dl_handset').innerHTML = uniq('handset').map(v => `<option value="${esc(v)}">`).join('');
-  const hidden = hiddenColors();
-  $('dl_color').innerHTML = colorHistory().filter(v => !hidden.has(norm(v)))
-    .map(v => `<option value="${esc(v)}">`).join('');
+  if (!$('colorSuggestions').hidden) renderColorDropdown();
 }
+
+let colorDropdownShowAll = false;
+let displayedColorChoices = [];
+function renderColorDropdown() {
+  const hidden = hiddenColors();
+  const query = colorDropdownShowAll ? '' : norm($('f_color').value);
+  displayedColorChoices = colorHistory().filter(v => !hidden.has(norm(v)) && (!query || norm(v).includes(query)));
+  $('colorSuggestions').innerHTML = displayedColorChoices.length ? displayedColorChoices.map((color, i) => `
+    <div class="color-choice-row">
+      <button type="button" class="color-choice" data-color-select="${i}">${esc(color)}</button>
+      ${S.admin && S.colorSyncReady ? `<button type="button" class="color-remove" data-color-remove="${i}"
+        aria-label="Remove ${esc(color)} from suggestions" title="Remove ${esc(color)}">×</button>` : ''}
+    </div>`).join('') : '<div class="color-suggestions-empty">No matching saved colors. You can type a new one.</div>';
+}
+function showColorDropdown(showAll = false) {
+  colorDropdownShowAll = showAll;
+  renderColorDropdown();
+  $('colorSuggestions').hidden = false;
+  $('f_color').setAttribute('aria-expanded', 'true');
+  $('colorArrow').setAttribute('aria-expanded', 'true');
+}
+function closeColorDropdown() {
+  $('colorSuggestions').hidden = true;
+  $('f_color').setAttribute('aria-expanded', 'false');
+  $('colorArrow').setAttribute('aria-expanded', 'false');
+}
+function toggleColorDropdown() {
+  if ($('colorSuggestions').hidden) showColorDropdown(true);
+  else closeColorDropdown();
+}
+$('f_color').addEventListener('focus', () => {
+  if ($('colorSuggestions').hidden) showColorDropdown(false);
+});
+$('f_color').addEventListener('input', () => showColorDropdown(false));
+$('colorPicker').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('colorSuggestions').hidden) {
+    e.preventDefault(); e.stopPropagation(); closeColorDropdown(); return;
+  }
+  if (e.key === 'ArrowDown' && e.target.id === 'f_color') {
+    e.preventDefault();
+    showColorDropdown(false);
+    const first = $('colorSuggestions').querySelector('.color-choice');
+    if (first) first.focus();
+  }
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.target.matches('.color-choice')) {
+    e.preventDefault();
+    const options = [...$('colorSuggestions').querySelectorAll('.color-choice')];
+    const index = options.indexOf(e.target);
+    (options[(index + (e.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length] || e.target).focus();
+  }
+});
+$('colorSuggestions').addEventListener('click', e => {
+  const remove = e.target.closest('[data-color-remove]');
+  if (remove) {
+    if (!S.admin) return;
+    const color = displayedColorChoices[Number(remove.dataset.colorRemove)];
+    if (!color) return;
+    updateSharedColorSettings('hide', color);
+    return;
+  }
+  const option = e.target.closest('[data-color-select]');
+  if (option) {
+    const color = displayedColorChoices[Number(option.dataset.colorSelect)];
+    if (!color) return;
+    $('f_color').value = color;
+    closeColorDropdown();
+    // Return focus without triggering the focus handler to reopen the list.
+    $('f_color').focus();
+    closeColorDropdown();
+  }
+});
+document.addEventListener('pointerdown', e => {
+  if (!$('colorPicker').contains(e.target)) closeColorDropdown();
+});
 function toggleColorTools() {
   if (!S.admin) return;
+  if (!S.colorSyncReady) return toast('First install ColorSync.gs in the current backend and redeploy.', true);
   const visible = $('colorTools').classList.toggle('is-open');
   $('btnColors').setAttribute('aria-expanded', String(visible));
   if (visible) renderColors();
@@ -725,7 +865,7 @@ function renderColors() {
     const isHidden = hidden.has(norm(color));
     return `<div class="urow">
       <div class="ui"><div class="un">${esc(color)}</div>
-      <div class="ue">${isHidden ? 'Hidden from suggestions' : 'Shown in suggestions'}</div></div>
+      <div class="ue">${isHidden ? 'Hidden for all sellers' : 'Shown to all sellers'}</div></div>
       <button type="button" class="btn ${isHidden ? 'btn-light' : 'btn-primary'} mini"
         onclick="toggleColorSuggestion(${i})">${isHidden ? 'Restore' : 'Hide'}</button>
     </div>`;
@@ -735,23 +875,17 @@ function toggleColorSuggestion(index) {
   if (!S.admin) return;
   const color = colorHistory()[index];
   if (color === undefined) return;
-  const hidden = hiddenColors(), key = norm(color);
-  if (hidden.has(key)) hidden.delete(key); else hidden.add(key);
-  saveHiddenColors(hidden);
-  renderLists(); renderColors();
+  const hidden = hiddenColors().has(norm(color));
+  return updateSharedColorSettings(hidden ? 'show' : 'hide', color);
 }
 function clearColorHistory() {
   if (!S.admin) return;
-  if (!confirm('Hide every color from the Exact Color suggestions in this browser? Existing requests will remain unchanged.')) return;
-  saveHiddenColors(new Set(colorHistory().map(norm)));
-  renderLists(); renderColors();
-  toast('Color suggestions cleared in this browser');
+  if (!confirm('Hide all saved color suggestions for EVERY seller? Existing requests remain unchanged.')) return;
+  return updateSharedColorSettings('hideAll');
 }
 function restoreColorHistory() {
   if (!S.admin) return;
-  saveHiddenColors(new Set());
-  renderLists(); renderColors();
-  toast('Color suggestions restored in this browser');
+  return updateSharedColorSettings('showAll');
 }
 
 function setFilter(k, v) { S.filter[k] = v; renderKpis(); renderTable(); }
@@ -764,6 +898,8 @@ function openForm(id) {
   // Start each request form with color management collapsed (admin can expand it).
   $('colorTools').classList.remove('is-open');
   $('btnColors').setAttribute('aria-expanded', 'false');
+  closeColorDropdown();
+  refreshColorSettings();
   $('formTitle').textContent = r ? 'Edit Request ' + r.id : 'New Request';
   $('f_id').value = r ? r.id : '';
   $('f_first').value = r ? r.first : '';
@@ -789,6 +925,7 @@ function openForm(id) {
   if (window.innerWidth > 700) setTimeout(() => $('f_first').focus(), 50);
 }
 function closeForm() {
+  closeColorDropdown();
   $('modal').classList.remove('open');
   document.body.classList.remove('noscroll');
 }
