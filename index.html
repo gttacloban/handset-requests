@@ -285,8 +285,8 @@ input[readonly]{background:var(--bg);cursor:default}
     <h2 id="formTitle">New Request</h2>
     <input type="hidden" id="f_id">
     <div class="fgrid">
-      <div><label>Customer First Name <span class="req">*</span></label><input id="f_first" required></div>
-      <div><label>Customer Last Name <span class="req">*</span></label><input id="f_last" required></div>
+      <div><label>Customer First Name <span class="req">*</span></label><input id="f_first" placeholder="e.g. Narvs" required></div>
+      <div><label>Customer Last Name <span class="req">*</span></label><input id="f_last" placeholder="e.g. Eiv" required></div>
       <div><label>Mobile # <span class="req">*</span></label><input id="f_mobile" inputmode="tel" placeholder="09XXXXXXXXX" required></div>
       <div><label>Request Date <span class="req">*</span></label><input id="f_date" type="date" required></div>
       <div><label>Handset Description <span class="req">*</span></label><input id="f_handset" list="dl_handset" placeholder="e.g. iPhone 17 Pro Max 256GB" required></div>
@@ -329,7 +329,7 @@ input[readonly]{background:var(--bg);cursor:default}
     <h2>Users</h2>
     <form class="fgrid" onsubmit="addUser(event)">
       <div><label>Gmail <span class="req">*</span></label><input id="u_email" type="email" placeholder="name@gmail.com" required></div>
-      <div><label>Name <span class="req">*</span></label><input id="u_name" placeholder="e.g. Narvs" required></div>
+      <div><label>Name <span class="req">*</span></label><input id="u_name" placeholder="e.g. Grace" required></div>
       <div><label>Role</label><select id="u_role"><option>Seller</option><option>Admin</option></select></div>
       <div style="display:flex;align-items:flex-end;gap:8px"><button type="button" class="btn btn-light" id="uCancel" onclick="cancelEditUser()" style="display:none">Cancel</button><button type="submit" class="btn btn-primary" id="uSubmit" style="flex:1">+ Add user</button></div>
     </form>
