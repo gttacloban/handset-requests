@@ -10,6 +10,15 @@
 <title>Handset Pre-Order Unified Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer onload="gisReady()"></script>
+<script>
+/* Restore the user's appearance preference before styles paint. */
+(function () {
+  var mode = 'default';
+  try { mode = localStorage.getItem('hpo_theme_mode') === 'dark' ? 'dark' : 'default'; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', mode);
+  document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
+})();
+</script>
 <style>
 :root{
   --bg:#f3f5f9;--card:#fff;--ink:#16213a;--muted:#6b7590;--line:#e3e7ef;
@@ -457,6 +466,122 @@ tbody tr:hover{background:#fbfcff}
 
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.sidebar,.kpi{transition:none}}
 
+
+/* ================= Appearance: Default / Dark ================= */
+.theme-toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+ min-height:39px;padding:7px 12px;border:1px solid #e3eaf6;border-radius:10px;
+ font:inherit;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer;
+ background:#f5f8ff;color:#344f80;transition:background .15s,border-color .15s}
+.theme-toggle:hover{background:#eaf1ff;border-color:#bfcff4}
+.theme-toggle:focus-visible,.appearance-select:focus-visible{outline:3px solid #7da4fa;outline-offset:2px}
+.theme-icon{font-size:17px;line-height:1}
+.appearance-label{display:block;font-size:10px;font-weight:800;letter-spacing:1.4px;color:#8d9bb5;margin:0 0 8px}
+.appearance-select{width:100%;border:1px solid #e0e8f5;background:#f7f9fd;
+ color:#425879;border-radius:9px;padding:10px 9px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:20px}
+@media(max-width:700px){
+ .theme-toggle{min-width:39px;min-height:39px;padding:7px;border-radius:10px}
+ .theme-toggle .theme-text{display:none}
+}
+@media(max-width:360px){.topbar-left{gap:8px}.topbar .hright{gap:4px}}
+
+:root[data-theme="dark"]{
+ --bg:#0c1424;--card:#162238;--ink:#eaf0fc;--muted:#9caecc;--line:#2b3952;
+ --brand:#101b2f;--accent:#8fb1ff;
+ --aw:#f2b85d;--aw-bg:#3c301d;--aw-ink:#ffd792;
+ --fr:#7da7ff;--fr-bg:#1b3156;--fr-ink:#b6cbff;
+ --fu:#39c88a;--fu-bg:#173b30;--fu-ink:#a4f0cd;
+ --ca:#f57b87;--ca-bg:#432535;--ca-ink:#ffb2be;
+ --ot:#9aaacc;--ot-bg:#253249;--ot-ink:#dae5f8;
+ --ex:#b79bfa;--ex-bg:#35284f;--ex-ink:#dcc7ff;
+}
+:root[data-theme="dark"] body{background:var(--bg);color:var(--ink)}
+:root[data-theme="dark"] .sidebar{background:#111d30;border-color:#2a3a54;box-shadow:3px 0 24px rgba(0,0,0,.12)}
+:root[data-theme="dark"] .sidebar-brand,:root[data-theme="dark"] .sidebar-bottom{border-color:#2b3a51}
+:root[data-theme="dark"] .brand-copy strong,:root[data-theme="dark"] .topbar h1,
+:root[data-theme="dark"] .welcome-row h2,:root[data-theme="dark"] .section-heading h2,
+:root[data-theme="dark"] .panel h3,:root[data-theme="dark"] .panel-heading h3,
+:root[data-theme="dark"] .updates-head h2,:root[data-theme="dark"] .updates-entry-title{color:#eef4ff}
+:root[data-theme="dark"] .brand-copy span,:root[data-theme="dark"] .nav-label,
+:root[data-theme="dark"] .topbar-crumb,:root[data-theme="dark"] .heading-helper,
+:root[data-theme="dark"] .sidebar-bottom,:root[data-theme="dark"] .sidebar-bottom>span:not(.online-dot),
+:root[data-theme="dark"] .sidebar-bottom small{color:#91a5c7}
+:root[data-theme="dark"] .nav-item{color:#a2b4d0}
+:root[data-theme="dark"] .nav-item:hover{background:#202f4a;color:#bcd0ff}
+:root[data-theme="dark"] .nav-item.active{background:#243b65;color:#bad0ff;box-shadow:inset 3px 0 0 #7da6ff}
+:root[data-theme="dark"] header.topbar{background:rgba(17,29,48,.97);border-color:#2c3c56}
+:root[data-theme="dark"] .menu-toggle,:root[data-theme="dark"] .theme-toggle,
+:root[data-theme="dark"] .appearance-select{background:#20304b;border-color:#3b4c6a;color:#e0eaff}
+:root[data-theme="dark"] .theme-toggle:hover{background:#2a4065;border-color:#658acc}
+:root[data-theme="dark"] .appearance-label{color:#9cafce}
+:root[data-theme="dark"] .live-badge,:root[data-theme="dark"] .topbar .who{background:#1c2a42;color:#c1d2f0;border-color:#33435d}
+:root[data-theme="dark"] .topbar .who.admin{border-color:#2f795c;box-shadow:inset 0 0 0 1px #2f795c}
+:root[data-theme="dark"] .topbar .avatar{background:#30496d;color:#dce9ff}
+:root[data-theme="dark"] .date-pill{background:#19283e;border-color:#31425c;color:#c2d0e8}
+:root[data-theme="dark"] .welcome-row .tags,:root[data-theme="dark"] .panel-eyebrow,
+:root[data-theme="dark"] .chart-caption,:root[data-theme="dark"] .dashboard-footer{color:#9eafca}
+:root[data-theme="dark"] .eyebrow-line{background:#385379}
+:root[data-theme="dark"] .rolebar{background:#1d3352;border-color:#35527a;color:#c6d8f5}
+:root[data-theme="dark"] .rolebar.admin{background:#173b31;border-color:#2c6a53;color:#a6e6c5}
+:root[data-theme="dark"] .rolebar b{color:#eef4ff}
+:root[data-theme="dark"] .panel,:root[data-theme="dark"] .updates-panel{background:#162238;border-color:#2d3d58;box-shadow:0 6px 20px rgba(0,0,0,.10)}
+:root[data-theme="dark"] .panel-chip{background:#22324c;border-color:#32445f;color:#c0cce2}
+:root[data-theme="dark"] .section-icon,:root[data-theme="dark"] .updates-symbol{background:#243b65;color:#aec8ff}
+:root[data-theme="dark"] .bar-plot{border-color:#34445e;background:repeating-linear-gradient(to top,transparent 0,transparent 48px,#263751 49px,#263751 50px)}
+:root[data-theme="dark"] .bar-count,:root[data-theme="dark"] .bar-day,
+:root[data-theme="dark"] .legend-row,:root[data-theme="dark"] .updates-subtitle,
+:root[data-theme="dark"] .note{color:#aebed6}
+:root[data-theme="dark"] .legend-count{color:#edf4ff}
+:root[data-theme="dark"] .donut-center{background:#162238;color:#f0f5ff}
+:root[data-theme="dark"] .donut-center .donut-count{color:#f0f5ff}
+:root[data-theme="dark"] .donut-center .donut-caption{color:#a9badd}
+:root[data-theme="dark"] .top li,:root[data-theme="dark"] .urow{border-color:#2d3d58}
+:root[data-theme="dark"] .tblwrap{border-color:#34435e}
+:root[data-theme="dark"] thead{background:#202e45}
+:root[data-theme="dark"] th{color:#bac8df;border-color:#33435e}
+:root[data-theme="dark"] td{color:#e1eaff;border-color:#2b3c58}
+:root[data-theme="dark"] tbody tr:hover{background:#1c2c45}
+:root[data-theme="dark"] .filters input,:root[data-theme="dark"] .filters select,
+:root[data-theme="dark"] input,:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea{background:#1c2b43;color:#e5edff;border-color:#3a4b69}
+:root[data-theme="dark"] input::placeholder,:root[data-theme="dark"] textarea::placeholder{color:#a2b2cb;opacity:1}
+:root[data-theme="dark"] input[readonly],:root[data-theme="dark"] select:disabled{background:#202d42;color:#c9d5e7}
+:root[data-theme="dark"] .btn-light{background:#253550;color:#e1ebff;border-color:#425675}
+:root[data-theme="dark"] .btn-light:hover{background:#304461}
+:root[data-theme="dark"] .rcard,:root[data-theme="dark"] .box,
+:root[data-theme="dark"] .sbox{background:#162238;color:#eaf0fc;border-color:#34435e}
+:root[data-theme="dark"] .rcard .nm,:root[data-theme="dark"] .box h2,
+:root[data-theme="dark"] .sbox h2,:root[data-theme="dark"] .urow .un{color:#f0f5ff}
+:root[data-theme="dark"] .rcard .id,:root[data-theme="dark"] .rcard .dev span,
+:root[data-theme="dark"] .sbox p,:root[data-theme="dark"] .sbox .sub2,
+:root[data-theme="dark"] .urow .ue{color:#a9b9d2}
+:root[data-theme="dark"] .modal{background:rgba(4,10,22,.73)}
+:root[data-theme="dark"] .modal .box h2,:root[data-theme="dark"] .modal .box .actions{background:#162238;border-color:#34435e}
+:root[data-theme="dark"] .chip{background:#253650;color:#e4ecfb}
+:root[data-theme="dark"] .color-suggestions{background:#1c2c45;border-color:#394b68;box-shadow:0 12px 24px rgba(0,0,0,.4)}
+:root[data-theme="dark"] .color-choice{color:#e5edff}
+:root[data-theme="dark"] .color-choice:hover,:root[data-theme="dark"] .color-choice:focus-visible{background:#2a4060}
+:root[data-theme="dark"] .updates-empty{background:#1c2c45;border-color:#3b506b;color:#b5c7e1}
+:root[data-theme="dark"] .updates-count,:root[data-theme="dark"] .updates-action{background:#25364f;color:#d5e3fc}
+:root[data-theme="dark"] .updates-entry,:root[data-theme="dark"] .updates-compose{border-color:#33445e}
+:root[data-theme="dark"] .updates-date,:root[data-theme="dark"] .updates-message,
+:root[data-theme="dark"] .updates-compose label,:root[data-theme="dark"] .updates-compose-hint{color:#b9c8e1}
+:root[data-theme="dark"] .updates-category{background:#2b416f;color:#c8d9ff}
+:root[data-theme="dark"] .updates-category.change{background:#194c3e;color:#c4f8dd}
+:root[data-theme="dark"] .updates-category.notification{background:#534022;color:#ffe2a6}
+:root[data-theme="dark"] .updates-action.delete{background:#4b2937;color:#ffb6c0}
+:root[data-theme="dark"] .updates-compose input,:root[data-theme="dark"] .updates-compose textarea,
+:root[data-theme="dark"] .updates-compose select{background:#1c2b43;border-color:#3a4b69;color:#e5edff}
+:root[data-theme="dark"] .lbusy{color:#e5edff}
+:root[data-theme="dark"] .screen{background:#0b1424}
+:root[data-theme="dark"] .role{background:#263d60;color:#c6d9fc}
+:root[data-theme="dark"] .role.admin{background:#214634;color:#bcf6d4}
+:root[data-theme="dark"] .updates-more{color:#9cbcff}
+:root[data-theme="dark"] .hold.off{background:#35284f;color:#dcc7ff}
+:root[data-theme="dark"] .hold.urgent{background:#432535;color:#ffb2be}
+@media(max-width:700px){
+ :root[data-theme="dark"] .modal,:root[data-theme="dark"] .modal.open{background:#162238}
+}
+
 </style>
 </head>
 <body>
@@ -497,6 +622,11 @@ tbody tr:hover{background:#fbfcff}
       </button>
     </nav>
     <div class="sidebar-bottom">
+      <label class="appearance-label" for="themeSelect">APPEARANCE</label>
+      <select id="themeSelect" class="appearance-select" aria-label="Appearance mode" onchange="setTheme(this.value)">
+        <option value="default">☀ Default Mode</option>
+        <option value="dark">☾ Dark Mode</option>
+      </select>
       <span class="online-dot"></span><span>Connected workspace</span>
       <small>Centralized store monitoring</small>
     </div>
@@ -509,6 +639,9 @@ tbody tr:hover{background:#fbfcff}
           <h1>Dashboard</h1></div>
       </div>
       <div class="hright">
+        <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch to Dark Mode" aria-pressed="false" title="Switch appearance">
+          <span class="theme-icon" aria-hidden="true">☾</span><span class="theme-text">Dark Mode</span>
+        </button>
         <span class="live-badge"><span class="online-dot"></span> Live tracker</span>
         <button class="btn btn-light" id="btnUsers" onclick="openUsers()" style="display:none">👥 <span class="txt">Users</span></button>
         <button class="btn btn-primary" id="btnNew" onclick="openForm()" style="display:none">+ New Request</button>
@@ -552,7 +685,7 @@ tbody tr:hover{background:#fbfcff}
         </section>
         <div class="welcome-row">
           <div><div class="eyebrow">OVERVIEW <span class="eyebrow-line"></span></div>
-            <h2>Handset Pre-Order & Requests Overview</h2>
+            <h2>Handset Pre-Order Overview</h2>
             <p class="tags">Pre-Order/Request Monitoring • Stock Allocation • Handset Updates</p>
           </div>
           <div class="date-pill" id="todayLabel" aria-label="Today's date"></div>
@@ -717,6 +850,33 @@ const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: f
   filter: { q: '', status: '', seller: '', type: '', category: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false, updates: [], updatesReady: false, updatesPending: false, updatesRefreshing: false, updatesExpanded: false, updateEditingId: '' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* ================= Appearance =================
+   Browser-local preference; never changes anyone else's view or app data. */
+const THEME_KEY = 'hpo_theme_mode';
+function setTheme(mode) {
+  const chosen = mode === 'dark' ? 'dark' : 'default';
+  document.documentElement.setAttribute('data-theme', chosen);
+  document.documentElement.style.colorScheme = chosen === 'dark' ? 'dark' : 'light';
+  try { localStorage.setItem(THEME_KEY, chosen); } catch (e) {}
+  const picker = $('themeSelect');
+  if (picker) picker.value = chosen;
+  const btn = $('themeToggle');
+  if (btn) {
+    const nextLabel = chosen === 'dark' ? 'Switch to Default Mode' : 'Switch to Dark Mode';
+    btn.setAttribute('aria-label', nextLabel);
+    btn.setAttribute('title', nextLabel);
+    btn.setAttribute('aria-pressed', String(chosen === 'dark'));
+    btn.querySelector('.theme-icon').textContent = chosen === 'dark' ? '☀' : '☾';
+    btn.querySelector('.theme-text').textContent = chosen === 'dark' ? 'Default Mode' : 'Dark Mode';
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', chosen === 'dark' ? '#101b2f' : '#0b1f4d');
+}
+function toggleTheme() {
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'default' : 'dark');
+}
+setTheme(document.documentElement.getAttribute('data-theme'));
+
 const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const CLOSED = ['Fulfilled', 'Cancelled', 'Expired', 'Lapsed'];
 // Show the requested new name without breaking older records or backend data.
