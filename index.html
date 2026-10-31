@@ -1428,7 +1428,7 @@ function renderAvail() {
     return { ...x, next };
   });
   $('avail').innerHTML = list.length ? list.map(x => `
-    <li><span>${esc(x.handset)}<span style="display:block;color:var(--muted);font-size:12px">${esc(x.color)}${x.next ? ` • Next: ${esc(x.next.id)} · ${esc(x.next.seller)} · WL #${esc(x.next.waitlist)}` : ' • No one waiting'}</span></span>
+    <li><span>${esc(x.handset)}<span style="display:block;color:var(--muted);font-size:12px">${esc(x.color)}${x.next ? ` • Next: ${esc(x.next.id)} · ${esc(x.next.seller)} · WL #${esc(x.next.waitlist)}` : ''}</span></span>
     <span style="display:flex;align-items:center;gap:8px"><span class="u">${x.units}</span>${S.admin && x.next ? `<button class="btn btn-primary mini" onclick="holdRequest('${esc(x.next.id)}')">Assign</button>` : ''}</span></li>`).join('')
     : '<li style="color:var(--muted)">No released units</li>';
 }
