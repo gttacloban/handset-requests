@@ -585,7 +585,7 @@ tbody tr:hover{background:#fbfcff}
           <span class="heading-helper">Search, filter and manage handset requests</span></div>
         <section class="panel requests-panel">
           <div class="filters">
-            <input id="fl_q" placeholder="Search name, mobile, handset, ID…" aria-label="Search requests" oninput="setFilter('q',this.value)">
+            <input id="fl_q" placeholder="Search name, mobile, handset, ID, Waitlist #…" aria-label="Search requests" oninput="setFilter('q',this.value)">
             <select id="fl_status" aria-label="Filter statuses" onchange="setFilter('status',this.value)"></select>
             <select id="fl_seller" aria-label="Filter sellers" onchange="setFilter('seller',this.value)"></select>
             <select id="fl_type" aria-label="Filter types" onchange="setFilter('type',this.value)"></select>
@@ -1061,7 +1061,7 @@ function filtered() {
     (!f.status || sameStatus(r.status, f.status)) &&
     (!f.seller || r.seller === f.seller) &&
     (!f.type || r.type === f.type) &&
-    (!q || norm([r.id, r.first, r.last, r.mobile, r.handset, r.color, r.remarks].join(' ')).includes(q))
+    (!q || norm([r.id, r.first, r.last, r.mobile, r.handset, r.color, r.waitlist, r.remarks].join(' ')).includes(q))
   ).sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0) || b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 }
 
