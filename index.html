@@ -1028,7 +1028,7 @@ function renderCharts() {
     const y = 50 - 41 * Math.cos(angle);
     return `<span class="donut-slice-label" aria-hidden="true" title="${esc(s)}: ${statusPercent(n)}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${statusPercent(n)}</span>`;
   }).join('');
-  $('statusChart').innerHTML = `<div class="donut-chart" style="--ring:${ring}" role="img" aria-label="Status percentages for ${total} requests: ${values.map(([s,n])=>s+' '+statusPercent(n)).join(', ')}">${sliceLabels}<div class="donut-center"><span class="donut-count">${formatCount(total)}</span><span class="donut-caption">Requests</span></div></div>
+  $('statusChart').innerHTML = `<div class="donut-chart" style="--ring:${ring}" role="img" aria-label="Status percentages for ${total} requests: ${values.map(([s,n])=>s+' '+statusPercent(n)).join(', ')}">${sliceLabels}<div class="donut-center"><span class="donut-count">${formatCount(total)}</span><span class="donut-caption">Total Requests</span></div></div>
     <div class="status-legend">${rows.map(([s,n],i)=>`<div class="legend-row" title="${esc(s)}: ${formatCount(n)} requests (${statusPercent(n)})"><span class="legend-dot" style="background:${chartColors[i%chartColors.length]}"></span><span class="legend-label">${esc(s)}</span><span class="legend-count">${formatCount(n)}</span></div>`).join('') || '<span class="note">No requests yet</span>'}</div>`;
 }
 function toggleSidebar(force) {
