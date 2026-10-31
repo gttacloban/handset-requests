@@ -215,7 +215,7 @@ input[readonly]{background:var(--bg);cursor:default}
     <div>
       <h1>Handset Pre-Order Unified Tracker</h1>
       <div class="sub">Centralized Store Request Monitoring</div>
-      <div class="tags">Handset Updates</div>
+      <div class="tags">•Pre-Order/Request Monitoring • Stock Allocation • Handset Updates</div>
     </div>
     <div class="hright">
       <button class="who" id="who" style="display:none" onclick="logout()" title="Sign out">
@@ -536,9 +536,9 @@ function init(d) {
 
   fill($('f_type'), S.types, 'Select type');
   fill($('f_status'), S.statuses, '', false, true);
-  fill($('fl_status'), S.statuses, 'All statuses', true, true);
-  fill($('fl_seller'), S.sellers, 'All sellers', true);
-  fill($('fl_type'), S.types, 'All types', true);
+  fill($('fl_status'), S.statuses, 'All Statuses', true, true);
+  fill($('fl_seller'), S.sellers, 'All Sellers', true);
+  fill($('fl_type'), S.types, 'All Types', true);
 
   $('fl_status').value = S.filter.status; $('fl_seller').value = S.filter.seller; $('fl_type').value = S.filter.type;
   $('btnNew').style.display = '';
