@@ -283,7 +283,7 @@ header .hright{margin:0;gap:11px;flex-wrap:nowrap}
 .topbar .who.admin{box-shadow:inset 0 0 0 1px #c8eedb;border-color:#c8eedb}
 .topbar .avatar{background:#dfe9ff;color:#315bc6}
 .menu-toggle{display:none;border:1px solid #e2e9f6;background:#fff;border-radius:9px;cursor:pointer;color:#2b4674;font-size:21px;min-width:42px;min-height:42px}
-main{max-width:none;margin:0;padding:27px 28px 50px}
+main{max-width:none;margin:0;padding:27px 28px 10px}
 .welcome-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:15px}
 .eyebrow,.panel-eyebrow{font-size:10px;letter-spacing:1.6px;font-weight:800;color:#4870d1}
 .eyebrow-line{display:inline-block;background:#e3eaf8;width:30px;height:2px;vertical-align:middle;margin-left:7px}
@@ -359,7 +359,7 @@ th{text-transform:uppercase;color:#91a0ba;font-size:10px;letter-spacing:.5px}
 th,td{padding:12px 11px}
 tbody tr:hover{background:#fbfcff}
 /* Compact two-line footer: brand + copyright, administrator on the next line. */
-.dashboard-footer{text-align:center;color:#8c9bb2;margin:25px auto 0;padding:16px 12px 10px;
+.dashboard-footer{text-align:center;color:#8c9bb2;margin:20px auto 0;padding:12px 12px 2px;
   border-top:1px solid var(--line);font-size:11px;line-height:1.6;letter-spacing:.15px}
 .dashboard-footer .footer-line{display:flex;justify-content:center;align-items:baseline;gap:9px 12px;flex-wrap:wrap}
 .dashboard-footer .footer-line + .footer-line{margin-top:5px}
@@ -388,7 +388,7 @@ tbody tr:hover{background:#fbfcff}
  .topbar .who .txt{display:none}
  .topbar .btn#btnUsers{display:none!important}
  .live-badge{display:none}
- main{padding:17px 12px 90px}
+ main{padding:17px 12px 76px}
  .welcome-row{align-items:flex-start;gap:8px}
  .welcome-row h2{font-size:18px}
  .welcome-row .tags{font-size:10px;line-height:1.5}
@@ -824,6 +824,19 @@ tbody tr:hover{background:#fbfcff}
   .pagination-controls{flex-direction:column;align-items:stretch}
   .page-navigation{justify-content:space-between;flex-wrap:nowrap}
   .page-navigation .page-nav-btn{padding:7px 9px}
+}
+
+
+/* Responsive width guard: prevent the entire dashboard from expanding past the screen.
+   Wide request tables scroll inside their own panel instead. */
+html, body { width:100%; max-width:100%; overflow-x:clip; }
+.app-shell { width:100%; max-width:100%; min-width:0; }
+.workspace, #dashboardSection, .requests-panel, .tblwrap { min-width:0; max-width:100%; }
+.workspace { overflow-x:clip; }
+.tblwrap { width:100%; overflow-x:auto; overscroll-behavior-x:contain; }
+@media (min-width:701px) and (max-width:1100px) {
+  header.topbar { flex-wrap:wrap; }
+  header.topbar .hright { min-width:0; max-width:100%; flex-wrap:wrap; justify-content:flex-end; }
 }
 
 </style>
