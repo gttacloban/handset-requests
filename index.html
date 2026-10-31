@@ -678,6 +678,40 @@ tbody tr:hover{background:#fbfcff}
   :root[data-theme="globe"] .sidebar {background:rgba(7,20,44,.95);}
 }
 
+
+/* Date-range filter lives below the main request filters on all screen sizes. */
+.filters .date-range{grid-column:1/-1;display:flex;align-items:end;flex-wrap:wrap;gap:10px;
+  border-top:1px solid var(--line);padding-top:13px;margin-top:2px;min-width:0}
+.date-range-title{align-self:center;margin-right:8px;color:var(--muted);font-size:12px;font-weight:800;white-space:nowrap}
+.date-field{display:flex;align-items:center;gap:8px;margin:0;color:var(--muted);font-size:12px;font-weight:700;min-width:0}
+.date-field span{white-space:nowrap}
+.filters .date-field input[type="date"]{width:172px;max-width:100%;min-width:0;padding:9px 10px;font-size:13px;min-height:41px}
+.date-clear{border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--muted);
+  padding:9px 13px;min-height:41px;font:inherit;font-weight:800;font-size:12px;cursor:pointer}
+.date-clear:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.date-clear:disabled{opacity:.48;cursor:default}
+.date-range-message{color:#cf4554;font-size:12px;font-weight:700;align-self:center}
+.date-range-message:empty{display:none}
+:root[data-theme="dark"] .date-clear,:root[data-theme="globe"] .date-clear{
+  background:#1c2b43;border-color:#3a4b69;color:#c9d8ed}
+@media(max-width:1120px){
+  .filters .date-range{gap:9px}
+  .date-range-title{flex:0 0 100%;margin-right:0}
+}
+@media(max-width:700px){
+  .filters > input#fl_q,.filters > #fl_status{grid-column:auto}
+  .filters > input#fl_q{grid-column:1/-1}
+  .filters .date-range{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .date-range-title{grid-column:1/-1}
+  .date-field{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+  .filters .date-field input[type="date"]{width:100%;min-width:0;max-width:100%}
+  .date-clear{grid-column:1/-1;justify-self:start}
+  .date-range-message{grid-column:1/-1}
+}
+@media(max-width:420px){
+  .filters .date-range{grid-template-columns:1fr}
+  .date-range-title,.date-clear,.date-range-message{grid-column:1/-1}
+}
 </style>
 </head>
 <body>
@@ -817,14 +851,21 @@ tbody tr:hover{background:#fbfcff}
         <section class="panel requests-panel">
           <div class="filters">
             <input id="fl_q" placeholder="Search name, mobile, handset, ID, Waitlist #…" aria-label="Search requests" oninput="setFilter('q',this.value)">
-            <select id="fl_status" aria-label="Filter statuses" onchange="setFilter('status',this.value)"></select>
-            <select id="fl_seller" aria-label="Filter sellers" onchange="setFilter('seller',this.value)"></select>
-            <select id="fl_type" aria-label="Filter types" onchange="setFilter('type',this.value)"></select>
             <select id="fl_category" aria-label="Filter request category" onchange="setFilter('category',this.value)">
               <option value="">All Requests</option>
               <option value="Standard Request">All Standard Requests</option>
               <option value="Latest Request">All Latest Requests</option>
             </select>
+            <select id="fl_status" aria-label="Filter statuses" onchange="setFilter('status',this.value)"></select>
+            <select id="fl_seller" aria-label="Filter sellers" onchange="setFilter('seller',this.value)"></select>
+            <select id="fl_type" aria-label="Filter types" onchange="setFilter('type',this.value)"></select>
+            <div class="date-range" role="group" aria-label="Filter requests by date range">
+              <div class="date-range-title">📅 Request Date Range</div>
+              <label class="date-field" for="fl_date_from"><span>From Date</span><input type="date" id="fl_date_from" aria-label="Request date from" onchange="setDateFilter('dateFrom',this.value)"></label>
+              <label class="date-field" for="fl_date_to"><span>To Date</span><input type="date" id="fl_date_to" aria-label="Request date to" onchange="setDateFilter('dateTo',this.value)"></label>
+              <button type="button" class="date-clear" onclick="clearDateRange()" id="fl_date_clear">Clear Dates</button>
+              <div class="date-range-message" id="dateRangeMessage" role="status" aria-live="polite"></div>
+            </div>
           </div>
           <div class="tblwrap">
             <table>
@@ -944,7 +985,7 @@ const CONFIG = {
 /* ========================================== */
 
 const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: false, loaded: false,
-  filter: { q: '', status: '', seller: '', type: '', category: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false, updates: [], updatesReady: false, updatesPending: false, updatesRefreshing: false, updatesExpanded: false, updateEditingId: '' };
+  filter: { q: '', status: '', seller: '', type: '', category: '', dateFrom: '', dateTo: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false, updates: [], updatesReady: false, updatesPending: false, updatesRefreshing: false, updatesExpanded: false, updateEditingId: '' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* ================= Appearance =================
@@ -1167,6 +1208,9 @@ function init(d) {
   fill($('fl_type'), S.types, 'All Types', true);
 
   $('fl_status').value = S.filter.status; $('fl_seller').value = S.filter.seller; $('fl_type').value = S.filter.type; $('fl_category').value = S.filter.category || '';
+  $('fl_date_from').value = S.filter.dateFrom || '';
+  $('fl_date_to').value = S.filter.dateTo || '';
+  updateDateRangeUI();
   $('btnNew').style.display = '';
   $('fab').style.display = '';
   $('loading').style.display = 'none';
@@ -1314,13 +1358,19 @@ function renderTop() {
 
 function filtered() {
   const f = S.filter, q = norm(f.q);
-  return S.rows.filter(r =>
-    (!f.status || sameStatus(r.status, f.status)) &&
-    (!f.seller || r.seller === f.seller) &&
-    (!f.type || r.type === f.type) &&
-    (!f.category || r.requestCategory === f.category) &&
-    (!q || norm([r.id, r.first, r.last, r.mobile, r.handset, r.color, r.waitlist, r.remarks].join(' ')).includes(q))
-  ).sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0) || b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  // Compare normalized ISO date strings, including both ends of the range.
+  // A date filter works alongside category, status, seller, type and search.
+  if (f.dateFrom && f.dateTo && f.dateFrom > f.dateTo) return [];
+  return S.rows.filter(r => {
+    const requestDate = String(r.date || '').slice(0, 10);
+    return (!f.status || sameStatus(r.status, f.status)) &&
+      (!f.seller || r.seller === f.seller) &&
+      (!f.type || r.type === f.type) &&
+      (!f.category || r.requestCategory === f.category) &&
+      (!f.dateFrom || (requestDate && requestDate >= f.dateFrom)) &&
+      (!f.dateTo || (requestDate && requestDate <= f.dateTo)) &&
+      (!q || norm([r.id, r.first, r.last, r.mobile, r.handset, r.color, r.waitlist, r.remarks].join(' ')).includes(q));
+  }).sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0) || b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 }
 
 function statusCell(r) {
@@ -1513,6 +1563,28 @@ document.addEventListener('pointerdown', e => {
   if (!$('colorPicker').contains(e.target)) closeColorDropdown();
 });
 function setFilter(k, v) { S.filter[k] = v; renderKpis(); renderTable(); }
+function updateDateRangeUI() {
+  const f = S.filter;
+  const invalid = Boolean(f.dateFrom && f.dateTo && f.dateFrom > f.dateTo);
+  const msg = $('dateRangeMessage');
+  if (msg) msg.textContent = invalid ? 'From Date must be on or before To Date.' : '';
+  const clear = $('fl_date_clear');
+  if (clear) clear.disabled = !(f.dateFrom || f.dateTo);
+}
+function setDateFilter(key, value) {
+  if (key !== 'dateFrom' && key !== 'dateTo') return;
+  S.filter[key] = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
+  updateDateRangeUI();
+  renderTable();
+}
+function clearDateRange() {
+  S.filter.dateFrom = '';
+  S.filter.dateTo = '';
+  $('fl_date_from').value = '';
+  $('fl_date_to').value = '';
+  updateDateRangeUI();
+  renderTable();
+}
 
 /* ================= Form ================= */
 function openForm(id) {
