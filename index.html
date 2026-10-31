@@ -316,6 +316,12 @@ button.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 21px rgba(37,65,12
 .donut-chart{width:176px;height:176px;flex:0 0 176px;border-radius:50%;background:var(--ring,#e8edf7);position:relative;box-shadow:0 6px 20px rgba(48,79,138,.06)}
 .donut-center{position:absolute;inset:32px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#213557}
 .donut-center strong{font-size:31px;line-height:1.1}.donut-center span{font-size:11px;color:#94a1b7}
+/* Percentages are positioned directly on their matching colored donut segments. */
+.donut-slice-label{position:absolute;z-index:2;transform:translate(-50%,-50%);font-size:10px;line-height:1;
+ font-weight:800;color:#fff;white-space:nowrap;pointer-events:none;text-shadow:0 1px 3px rgba(11,31,77,.65);
+ font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+@media(max-width:1120px){.donut-slice-label{font-size:9px}}
+
 .status-legend{min-width:160px;display:flex;flex-direction:column;gap:11px;flex:1;max-width:225px}
 .legend-row{display:flex;align-items:center;gap:9px;font-size:11px;color:#75839f}
 .legend-dot{width:9px;height:9px;border-radius:3px;flex:0 0 9px}
@@ -1001,14 +1007,23 @@ function renderCharts() {
   });
   const ring = stops.length ? `conic-gradient(${stops.join(',')})` : '#e8edf7';
   const rows= total ? values : [...statusCounts.entries()].slice(0,4);
-  // Show each status as a percentage of all requests; keep total count below the 100% center.
+  // Show each status's share directly on its colored slice, and its count in the legend.
   const statusPercent = n => {
     if (!total) return '0%';
     const share = n / total * 100;
     return (Number.isInteger(share) ? share.toFixed(0) : share.toFixed(1)) + '%';
   };
-  $('statusChart').innerHTML = `<div class="donut-chart" style="--ring:${ring}" role="img" aria-label="Status percentage breakdown for ${total} requests"><div class="donut-center"><strong>${total ? '100%' : '0%'}</strong><span>${formatCount(total)} Requests</span></div></div>
-    <div class="status-legend">${rows.map(([s,n],i)=>`<div class="legend-row" title="${esc(s)}: ${formatCount(n)} requests (${statusPercent(n)})"><span class="legend-dot" style="background:${chartColors[i%chartColors.length]}"></span><span class="legend-label">${esc(s)}</span><span class="legend-count">${statusPercent(n)}</span></div>`).join('') || '<span class="note">No requests yet</span>'}</div>`;
+  let cursor = 0;
+  const sliceLabels = values.map(([s,n]) => {
+    const share = n / total;
+    const angle = (cursor + share / 2) * 2 * Math.PI;
+    cursor += share;
+    const x = 50 + 41 * Math.sin(angle);
+    const y = 50 - 41 * Math.cos(angle);
+    return `<span class="donut-slice-label" aria-hidden="true" title="${esc(s)}: ${statusPercent(n)}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${statusPercent(n)}</span>`;
+  }).join('');
+  $('statusChart').innerHTML = `<div class="donut-chart" style="--ring:${ring}" role="img" aria-label="Status percentages for ${total} requests: ${values.map(([s,n])=>s+' '+statusPercent(n)).join(', ')}">${sliceLabels}<div class="donut-center"><strong>${total ? '100%' : '0%'}</strong><span>${formatCount(total)} Requests</span></div></div>
+    <div class="status-legend">${rows.map(([s,n],i)=>`<div class="legend-row" title="${esc(s)}: ${formatCount(n)} requests (${statusPercent(n)})"><span class="legend-dot" style="background:${chartColors[i%chartColors.length]}"></span><span class="legend-label">${esc(s)}</span><span class="legend-count">${formatCount(n)}</span></div>`).join('') || '<span class="note">No requests yet</span>'}</div>`;
 }
 function toggleSidebar(force) {
   const on = typeof force === 'boolean' ? force : !document.body.classList.contains('sidebar-open');
