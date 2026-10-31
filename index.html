@@ -400,6 +400,65 @@ tbody tr:hover{background:#fbfcff}
  .modal{z-index:55}
 }
 @media(max-width:360px){.date-pill{display:none}.status-chart{gap:10px}.donut-chart{width:135px;height:135px;flex-basis:135px}.donut-center{inset:26px}.status-legend{min-width:0}}
+
+/* Shared admin-published updates for all signed-in Sellers and Admins. */
+.updates-panel{background:#fff;border:1px solid #e2eaf7;border-radius:15px;padding:17px 20px;
+  margin-bottom:19px;box-shadow:0 4px 20px rgba(27,48,89,.035);scroll-margin-top:105px}
+.updates-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.updates-head-left{display:flex;align-items:center;gap:12px;min-width:0}
+.updates-symbol{flex:none;width:43px;height:43px;border-radius:12px;background:#edf3ff;color:#3260df;
+  display:grid;place-items:center;font-size:22px}
+.updates-head h2{margin:0;font-size:18px;font-weight:800;color:#20365b}
+.updates-subtitle{margin:4px 0 0;color:#8291a9;font-size:12px;line-height:1.45}
+.updates-toolbar{display:flex;align-items:center;gap:9px}
+.updates-count{border-radius:50px;background:#f1f5fc;color:#657998;font-size:11px;font-weight:800;padding:6px 11px}
+.updates-add{background:#315ee2;color:white;border:0;border-radius:9px;min-height:39px;
+  padding:9px 14px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.updates-add:hover{background:#244bc4}
+.updates-add:disabled{opacity:.55;cursor:not-allowed}
+.updates-feed{margin-top:13px}
+.updates-empty{background:#f9fbff;border:1px dashed #e2e9f4;border-radius:10px;
+  padding:14px 16px;font-size:13px;color:#8190a8}
+.updates-entry{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-top:1px solid #edf1f7}
+.updates-entry:first-child{border-top:1px solid #edf1f7}
+.updates-entry-body{flex:1;min-width:0}
+.updates-entry-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.updates-category{display:inline-block;border-radius:50px;padding:4px 9px;font-size:10px;font-weight:800;
+  background:#eaf0ff;color:#3556b9}
+.updates-category.change{background:#e7f8ee;color:#168254}
+.updates-category.notification{background:#fff2df;color:#a5630d}
+.updates-entry-title{font-size:13px;color:#233c61;font-weight:800}
+.updates-date{font-size:11px;color:#99a7b9}
+.updates-message{margin:7px 0 0;line-height:1.5;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;color:#596b89}
+.updates-entry-actions{display:flex;gap:4px;flex:none}
+.updates-action{background:#f4f7fc;color:#536b94;border:0;padding:6px 9px;min-height:32px;
+  border-radius:8px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.updates-action.delete{background:#fff1f1;color:#bc3440}
+.updates-more[hidden],.updates-count[hidden]{display:none!important}
+.updates-more{display:block;margin-top:9px;padding:7px 0;border:0;background:transparent;
+  color:#2b59d7;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.updates-compose{border-top:1px solid #e9eef7;padding-top:15px;margin-top:15px}
+.updates-compose[hidden]{display:none}
+.updates-compose-grid{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:11px;margin-bottom:12px}
+.updates-compose label{display:block;color:#607290;font-size:12px;font-weight:800;margin:0 0 6px}
+.updates-compose input,.updates-compose textarea,.updates-compose select{width:100%;font-size:14px;border:1px solid #dce5f3;
+  border-radius:9px;padding:10px 12px;background:#fff}
+.updates-compose textarea{resize:vertical;min-height:91px}
+.updates-compose-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:11px}
+.updates-compose-actions .btn{font-size:12px;padding:9px 14px}
+.updates-compose-hint{font-size:11px;margin-top:6px;color:#8e9bb0}
+@media(max-width:700px){
+ .updates-panel{padding:14px 13px;margin-bottom:15px}
+ .updates-head-left{align-items:flex-start;gap:9px}
+ .updates-symbol{width:37px;height:37px;font-size:19px}
+ .updates-head h2{font-size:16px}
+ .updates-subtitle{font-size:11px}
+ .updates-compose-grid{grid-template-columns:1fr}
+ .updates-entry{flex-wrap:wrap}
+ .updates-entry-actions{margin-left:auto}
+ .updates-toolbar{margin-left:auto}
+}
+
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.sidebar,.kpi{transition:none}}
 
 </style>
@@ -418,6 +477,9 @@ tbody tr:hover{background:#fbfcff}
     <nav class="side-nav" aria-label="Dashboard sections">
       <button class="nav-item active" type="button" data-nav="dashboard" onclick="navigateTo('dashboard')">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg><span>Dashboard</span>
+      </button>
+      <button class="nav-item" type="button" data-nav="updates" onclick="navigateTo('updates')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20v-8a8 8 0 0 1 16 0v8M2 20h20M12 4V2M7 22h10"/></svg><span>Updates</span>
       </button>
       <button class="nav-item" type="button" data-nav="requests" onclick="navigateTo('requests')">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>Requests</span>
@@ -463,6 +525,35 @@ tbody tr:hover{background:#fbfcff}
     <main id="dashboardSection">
       <div id="loading"></div>
       <div id="app" style="display:none">
+        <!-- Shared Updates: admin can post; all signed-in sellers can read. -->
+        <section class="updates-panel" id="updatesSection" aria-label="Updates for all sellers">
+          <div class="updates-head">
+            <div class="updates-head-left">
+              <span class="updates-symbol" aria-hidden="true">🔔</span>
+              <div><h2>Updates</h2><p class="updates-subtitle">Announcements, changes, and notifications for all sellers.</p></div>
+            </div>
+            <div class="updates-toolbar">
+              <span class="updates-count" id="updatesCount" hidden></span>
+              <button class="updates-add" id="btnAddUpdate" type="button" onclick="openUpdateComposer()" style="display:none">+ Add Update</button>
+            </div>
+          </div>
+          <div id="updatesList" class="updates-feed" aria-live="polite"><div class="updates-empty">No updates available today.</div></div>
+          <button type="button" class="updates-more" id="updatesMore" onclick="toggleAllUpdates()" hidden>View all updates</button>
+          <form class="updates-compose" id="updatesComposer" onsubmit="submitUpdate(event)" hidden>
+            <div class="updates-compose-grid">
+              <div><label for="u_update_title">Update title</label><input id="u_update_title" maxlength="120" placeholder="e.g. New stock allocation guidelines" required></div>
+              <div><label for="u_update_type">Category</label><select id="u_update_type"><option>Announcement</option><option>Change</option><option>Notification</option></select></div>
+            </div>
+            <div><label for="u_update_message">Message to all sellers</label>
+              <textarea id="u_update_message" maxlength="1200" rows="3" placeholder="Type the announcement, change, or notification here..." required></textarea>
+              <div class="updates-compose-hint">Published updates appear for every signed-in Seller and Admin.</div>
+            </div>
+            <div class="updates-compose-actions">
+              <button type="button" class="btn btn-light" onclick="closeUpdateComposer()">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btnSaveUpdate">Publish Update</button>
+            </div>
+          </form>
+        </section>
         <div class="welcome-row">
           <div><div class="eyebrow">OVERVIEW <span class="eyebrow-line"></span></div>
             <h2>Handset Pre-Order Overview</h2>
@@ -627,7 +718,7 @@ const CONFIG = {
 /* ========================================== */
 
 const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: false, loaded: false,
-  filter: { q: '', status: '', seller: '', type: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false };
+  filter: { q: '', status: '', seller: '', type: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false, updates: [], updatesReady: false, updatesPending: false, updatesRefreshing: false, updatesExpanded: false, updateEditingId: '' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -718,7 +809,7 @@ function onCredential(resp) {
   setToken(resp.credential);
   const em = String(AUTH.profile.email || '').toLowerCase();
   if (S.loaded && S.user && S.user.email !== em) {   // different account: drop preloaded data
-    S.loaded = false; S.fresh = false; S.rows = [];
+    S.loaded = false; S.fresh = false; S.rows = []; S.updates = []; S.updatesReady = false;
     $('app').style.display = 'none'; $('loading').style.display = '';
   }
   if (S.loaded) $('loginScreen').classList.remove('open');   // data already prepared: show it now
@@ -770,7 +861,7 @@ const CACHE_KEY = () => 'hpo_cache_' + String((AUTH.profile && AUTH.profile.emai
 function saveCache() {
   if (!S.loaded || !S.user) return;
   try {
-    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined }));
+    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates }));
     localStorage.setItem('hpo_last', S.user.email);
   } catch (e) {}
 }
@@ -795,6 +886,8 @@ function init(d) {
   S.colorSyncReady = Array.isArray(d.hiddenColors);
   S.hiddenColors = S.colorSyncReady ? [...new Set(d.hiddenColors.map(norm).filter(Boolean))] : [];
   S.admin = !!d.user.admin;
+  // Cached updates may appear instantly; live read always verifies central backend state.
+  if (Array.isArray(d.updates)) S.updates = d.updates;
   if (d.logo) showLogo(d.logo);
 
   // Signed-in user chip
@@ -817,6 +910,9 @@ function init(d) {
   $('navUsers').style.display = S.admin ? '' : 'none';
   $('btnColors').style.display = S.admin ? '' : 'none';
   $('btnColors').title = S.colorSyncReady ? 'Manage colors for all sellers' : 'Requires backend ColorSync setup';
+  $('btnAddUpdate').style.display = S.admin ? '' : 'none';
+  $('btnAddUpdate').disabled = !S.updatesReady;
+  $('btnAddUpdate').title = S.updatesReady ? 'Publish for all sellers' : 'Updates backend not connected';
 
   fill($('f_type'), S.types, 'Select type');
   fill($('f_status'), S.statuses, '', false, true);
@@ -830,6 +926,8 @@ function init(d) {
   $('loading').style.display = 'none';
   $('app').style.display = 'block';
   render();
+  // Always refresh from the server, even when cached data was displayed.
+  refreshUpdates();
 }
 
 function fill(sel, list, placeholder, allowEmpty, isStatus) {
@@ -840,7 +938,7 @@ function fill(sel, list, placeholder, allowEmpty, isStatus) {
 
 /* ================= Render ================= */
 function render() {
-  renderKpis(); renderCharts(); renderAvail(); renderTop(); renderTable(); renderLists(); saveCache();
+  renderKpis(); renderCharts(); renderAvail(); renderTop(); renderTable(); renderLists(); renderUpdates(); saveCache();
 }
 
 function formatCount(n) { return Number(n || 0).toLocaleString(); }
@@ -926,7 +1024,7 @@ function toggleSidebar(force) {
   $('menuToggle').setAttribute('aria-expanded',String(on));
 }
 function navigateTo(area) {
-  const targets={dashboard:'dashboardSection',requests:'requestsSection',stock:'stockSection',analytics:'analyticsSection'};
+  const targets={dashboard:'dashboardSection',updates:'updatesSection',requests:'requestsSection',stock:'stockSection',analytics:'analyticsSection'};
   const el=$(targets[area] || 'dashboardSection');
   if (el) el.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
   document.querySelectorAll('.nav-item[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===area));
@@ -1452,6 +1550,116 @@ function removeUser(email) {
     .then(list => { S.users = list; renderUsers(); saveCache(); toast(u.name + ' removed'); })
     .catch(err => { S.users = backup; renderUsers(); toast(err.message, true); });
 }
+
+/* ================= Team Updates (server-backed; admin writes) ================= */
+function applyUpdates(data) {
+  if (!data || !Array.isArray(data.updates)) throw new Error('Updates API is not configured.');
+  S.updates = data.updates.filter(x => x && typeof x.id === 'string')
+    .sort((a,b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  S.updatesReady = true;
+  $('btnAddUpdate').disabled = false;
+  $('btnAddUpdate').title = 'Publish for all sellers';
+  renderUpdates();
+  saveCache();
+}
+function refreshUpdates() {
+  if (!S.loaded || S.updatesRefreshing || S.updatesPending || !tokenValid()) return Promise.resolve();
+  S.updatesRefreshing = true;
+  return api('getUpdates')
+    .then(applyUpdates)
+    .catch(e => {
+      if (e.message === 'Access denied') return;
+      // Do not pretend to publish while the server endpoint is missing.
+      S.updatesReady = false;
+      $('btnAddUpdate').disabled = true;
+      $('btnAddUpdate').title = 'Connect Updates.gs to your Apps Script API first';
+      console.warn('Updates synchronization unavailable:', e.message);
+      if (S.admin) renderUpdates();
+    })
+    .finally(() => { S.updatesRefreshing = false; });
+}
+function renderUpdates() {
+  const list = Array.isArray(S.updates) ? S.updates : [];
+  $('updatesCount').hidden = !list.length;
+  $('updatesCount').textContent = list.length + (list.length === 1 ? ' update' : ' updates');
+  const shown = S.updatesExpanded ? list : list.slice(0, 3);
+  $('updatesList').innerHTML = shown.length ? shown.map(u => {
+    const category = ['Announcement','Change','Notification'].includes(u.type) ? u.type : 'Announcement';
+    const date = u.createdAt && !isNaN(Date.parse(u.createdAt))
+      ? new Date(u.createdAt).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    // Escape all administrator-authored text; no HTML is injected into notices.
+    return `<article class="updates-entry">
+      <div class="updates-entry-body">
+        <div class="updates-entry-top">
+          <span class="updates-category ${category.toLowerCase()}">${esc(category)}</span>
+          <span class="updates-entry-title">${esc(u.title)}</span>
+          <time class="updates-date">${esc(date)}</time>
+        </div>
+        <p class="updates-message">${esc(u.message)}</p>
+      </div>
+      ${S.admin && S.updatesReady ? `<div class="updates-entry-actions">
+        <button type="button" class="updates-action" data-edit-update="${esc(u.id)}">Edit</button>
+        <button type="button" class="updates-action delete" data-delete-update="${esc(u.id)}">Delete</button>
+      </div>` : ''}
+    </article>`;
+  }).join('') : `<div class="updates-empty">${S.admin && !S.updatesReady ? 'No updates available. Connect the Updates backend to publish announcements.' : 'No updates available today.'}</div>`;
+  $('updatesMore').hidden = list.length <= 3;
+  $('updatesMore').textContent = S.updatesExpanded ? 'Show less' : `View all ${list.length} updates`;
+}
+function toggleAllUpdates() { S.updatesExpanded = !S.updatesExpanded; renderUpdates(); }
+function openUpdateComposer(id = '') {
+  if (!S.admin) return;
+  if (!S.updatesReady) return toast('Updates are not connected to Google Apps Script yet.',true);
+  const u = id ? S.updates.find(row => row.id === id) : null;
+  if (id && !u) return toast('Update no longer exists. Please refresh.',true);
+  S.updateEditingId = u ? u.id : '';
+  $('u_update_type').value = u ? u.type : 'Announcement';
+  $('u_update_title').value = u ? u.title : '';
+  $('u_update_message').value = u ? u.message : '';
+  $('btnSaveUpdate').textContent = u ? 'Save Changes' : 'Publish Update';
+  $('updatesComposer').hidden = false;
+  $('u_update_title').focus();
+}
+function closeUpdateComposer() {
+  S.updateEditingId = '';
+  $('updatesComposer').hidden = true;
+  $('updatesComposer').reset();
+}
+function submitUpdate(event) {
+  event.preventDefault();
+  if (!S.admin || !S.updatesReady || S.updatesPending) return;
+  const u = { id: S.updateEditingId, type: $('u_update_type').value,
+    title: $('u_update_title').value.trim(), message: $('u_update_message').value.trim() };
+  if (!u.title || !u.message) return toast('Please provide both a title and a message.', true);
+  if (u.title.length > 120 || u.message.length > 1200) return toast('Update is too long.', true);
+  S.updatesPending = true;
+  $('btnSaveUpdate').disabled = true;
+  api('manageUpdate', { mode: 'save', update: u })
+    .then(data => { applyUpdates(data); closeUpdateComposer(); toast('Update shared with all sellers.'); })
+    .catch(e => toast('Could not publish: ' + e.message,true))
+    .finally(() => { S.updatesPending = false; $('btnSaveUpdate').disabled = false; });
+}
+function removeUpdate(id) {
+  if (!S.admin || !S.updatesReady || S.updatesPending) return;
+  const row = S.updates.find(u => u.id === id);
+  if (!row || !confirm(`Delete the update "${row.title}" for all sellers?`)) return;
+  S.updatesPending = true;
+  api('manageUpdate', { mode: 'delete', id })
+    .then(data => { applyUpdates(data); toast('Update deleted for all sellers.'); })
+    .catch(e => toast('Could not delete: ' + e.message,true))
+    .finally(() => { S.updatesPending = false; });
+}
+$('updatesList').addEventListener('click', e => {
+  const edit = e.target.closest('[data-edit-update]');
+  const del = e.target.closest('[data-delete-update]');
+  if (edit) openUpdateComposer(edit.getAttribute('data-edit-update'));
+  else if (del) removeUpdate(del.getAttribute('data-delete-update'));
+});
+// Newly published notices become visible when staff return to the tab,
+// and every 60 seconds while the tab remains active.
+window.addEventListener('focus', refreshUpdates);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshUpdates(); });
+setInterval(() => { if (!document.hidden) refreshUpdates(); }, 60000);
 
 /* ================= Toast ================= */
 let tTimer;
