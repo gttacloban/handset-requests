@@ -112,6 +112,18 @@ label .req{color:var(--ca)}
 .hint{font-size:11px;color:var(--muted)}
 .sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.color-label-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.color-tool-toggle{border:0;background:transparent;color:var(--accent);font:inherit;font-weight:800;
+  font-size:12px;padding:2px 0;cursor:pointer;white-space:nowrap}
+.color-tool-toggle:hover{text-decoration:underline}
+.color-tool-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+.color-manager{display:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.color-manager.is-open{display:block}
+.color-manager-heading{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
+.color-manager .ulist{max-height:200px;overflow-y:auto;margin-top:8px}
+.color-manager .urow{padding:7px 0}
+.color-manager-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.color-manager-actions .btn{white-space:normal}
 
 /* Sign-in / denied screens */
 .screen{position:fixed;inset:0;background:var(--brand);display:none;align-items:center;justify-content:center;
@@ -169,8 +181,8 @@ input[readonly]{background:var(--bg);cursor:default}
   .tags,#btnNew{display:none}
   .who{padding:3px;border-radius:50%}
   .who .txt{display:none}
-  #btnUsers,#btnColors{padding:8px 10px}
-  #btnUsers .txt,#btnColors .txt{display:none}
+  #btnUsers{padding:8px 10px}
+  #btnUsers .txt{display:none}
 
   main{padding:12px 10px 96px}
   .kpis{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
@@ -223,7 +235,6 @@ input[readonly]{background:var(--bg);cursor:default}
         <div class="txt"><div class="nm" id="whoName"></div><div class="rl" id="whoRole"></div></div>
       </button>
       <button class="btn btn-light" id="btnUsers" onclick="openUsers()" style="display:none">👥 <span class="txt">Users</span></button>
-      <button class="btn btn-light" id="btnColors" onclick="openColors()" style="display:none" title="Manage color suggestions">🎨 <span class="txt">Colors</span></button>
       <button class="btn btn-primary" id="btnNew" onclick="openForm()" style="display:none">+ New Request</button>
     </div>
   </div>
@@ -279,7 +290,24 @@ input[readonly]{background:var(--bg);cursor:default}
       <div><label>Mobile # <span class="req">*</span></label><input id="f_mobile" inputmode="tel" placeholder="09XXXXXXXXX" required></div>
       <div><label>Request Date <span class="req">*</span></label><input id="f_date" type="date" required></div>
       <div><label>Handset Description <span class="req">*</span></label><input id="f_handset" list="dl_handset" placeholder="e.g. iPhone 17 Pro Max 256GB" required></div>
-      <div><label>Exact Color <span class="req">*</span></label><input id="f_color" list="dl_color" autocomplete="off" required></div>
+      <div>
+        <div class="color-label-row">
+          <label for="f_color">Exact Color <span class="req">*</span></label>
+          <button type="button" class="color-tool-toggle adminonly" id="btnColors" onclick="toggleColorTools()"
+            aria-controls="colorTools" aria-expanded="false" style="display:none" title="Manage color suggestions">🎨 Manage Colors</button>
+        </div>
+        <input id="f_color" list="dl_color" autocomplete="off" required>
+      </div>
+      <div class="full color-manager" id="colorTools" aria-label="Manage color history">
+        <div class="color-manager-heading">Color Suggestions <span class="hint">Admin only</span></div>
+        <div class="hint">Hide colors from this browser's suggestion list without deleting existing requests.</div>
+        <div class="ulist" id="colorList"></div>
+        <div class="color-manager-actions">
+          <button type="button" class="btn btn-light mini" onclick="clearColorHistory()">Clear All Suggestions</button>
+          <button type="button" class="btn btn-light mini" onclick="restoreColorHistory()">Restore All</button>
+        </div>
+        <div class="hint" style="margin-top:8px">Changes affect this browser only, not other staff devices.</div>
+      </div>
       <div><label>Quantity <span class="req">*</span></label><input id="f_qty" type="number" min="1" value="1" required></div>
       <div><label>Transaction Type <span class="req">*</span></label><select id="f_type" required></select></div>
       <div><label>Requestor / Seller <span class="req">*</span></label><input id="f_seller" readonly tabindex="-1"></div>
@@ -301,33 +329,13 @@ input[readonly]{background:var(--bg);cursor:default}
     <h2>Users</h2>
     <form class="fgrid" onsubmit="addUser(event)">
       <div><label>Gmail <span class="req">*</span></label><input id="u_email" type="email" placeholder="name@gmail.com" required></div>
-      <div><label>Name <span class="req">*</span></label><input id="u_name" placeholder="e.g. Narvs" required></div>
+      <div><label>Name <span class="req">*</span></label><input id="u_name" placeholder="e.g. Grace" required></div>
       <div><label>Role</label><select id="u_role"><option>Seller</option><option>Admin</option></select></div>
       <div style="display:flex;align-items:flex-end;gap:8px"><button type="button" class="btn btn-light" id="uCancel" onclick="cancelEditUser()" style="display:none">Cancel</button><button type="submit" class="btn btn-primary" id="uSubmit" style="flex:1">+ Add user</button></div>
     </form>
     <div class="note">The name is used as Requestor / Seller on this person's requests.</div>
     <div class="ulist" id="ulist"></div>
     <div class="actions"><button type="button" class="btn btn-light" onclick="closeUsers()">Close</button></div>
-  </div>
-</div>
-
-<!-- Manage color suggestions (admin only; local browser preferences) -->
-<div class="modal" id="colorsModal" onclick="if(event.target===this)closeColors()">
-  <div class="box">
-    <h2>Manage Color History</h2>
-    <p class="note" style="font-size:13px;margin:0 0 12px">
-      Hide individual colors or clear all suggestions from the Exact Color dropdown.
-      Existing requests and their colors will not be deleted.
-    </p>
-    <div class="sellernote" style="margin-bottom:12px">
-      These changes are saved only in this browser. Other staff devices will need a backend update to share the same hidden-color list.
-    </div>
-    <div class="ulist" id="colorList"></div>
-    <div class="actions" style="flex-wrap:wrap">
-      <button type="button" class="btn btn-light" onclick="clearColorHistory()">Clear All Suggestions</button>
-      <button type="button" class="btn btn-light" onclick="restoreColorHistory()">Restore All</button>
-      <button type="button" class="btn btn-primary" onclick="closeColors()">Done</button>
-    </div>
   </div>
 </div>
 
@@ -704,18 +712,11 @@ function renderLists() {
   $('dl_color').innerHTML = colorHistory().filter(v => !hidden.has(norm(v)))
     .map(v => `<option value="${esc(v)}">`).join('');
 }
-function openColors() {
+function toggleColorTools() {
   if (!S.admin) return;
-  renderColors();
-  $('colorsModal').classList.add('open');
-  document.body.classList.add('noscroll');
-  $('colorsModal').scrollTop = 0;
-}
-function closeColors() {
-  $('colorsModal').classList.remove('open');
-  if (!$('modal').classList.contains('open') && !$('usersModal').classList.contains('open')) {
-    document.body.classList.remove('noscroll');
-  }
+  const visible = $('colorTools').classList.toggle('is-open');
+  $('btnColors').setAttribute('aria-expanded', String(visible));
+  if (visible) renderColors();
 }
 function renderColors() {
   if (!S.admin) return;
@@ -725,7 +726,7 @@ function renderColors() {
     return `<div class="urow">
       <div class="ui"><div class="un">${esc(color)}</div>
       <div class="ue">${isHidden ? 'Hidden from suggestions' : 'Shown in suggestions'}</div></div>
-      <button class="btn ${isHidden ? 'btn-light' : 'btn-primary'} mini"
+      <button type="button" class="btn ${isHidden ? 'btn-light' : 'btn-primary'} mini"
         onclick="toggleColorSuggestion(${i})">${isHidden ? 'Restore' : 'Hide'}</button>
     </div>`;
   }).join('') : '<div class="empty">No saved colors in request history</div>';
@@ -760,6 +761,9 @@ function openForm(id) {
   const r = id ? S.rows.find(x => x.id === id) : null;
   if (r && !S.admin) return toast('Only the admin can edit. Please ask the admin.', true);
 
+  // Start each request form with color management collapsed (admin can expand it).
+  $('colorTools').classList.remove('is-open');
+  $('btnColors').setAttribute('aria-expanded', 'false');
   $('formTitle').textContent = r ? 'Edit Request ' + r.id : 'New Request';
   $('f_id').value = r ? r.id : '';
   $('f_first').value = r ? r.first : '';
@@ -1024,7 +1028,7 @@ function toast(msg, err) {
   clearTimeout(tTimer);
   tTimer = setTimeout(() => t.style.display = 'none', 3200);
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeForm(); closeUsers(); closeColors(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('colorTools').classList.contains('is-open')) { $('colorTools').classList.remove('is-open'); $('btnColors').setAttribute('aria-expanded', 'false'); } else { closeForm(); closeUsers(); } } });
 
 /* ================= Prepare last data behind the sign-in screen ================= */
 (function preload() {
