@@ -1866,6 +1866,7 @@ function onCredential(resp) {
   const em = String(AUTH.profile.email || '').toLowerCase();
   if (S.loaded && S.user && S.user.email !== em) {
     // Never display the previous user's cached dashboard to a different account.
+    attachmentMemoryCache_.clear();
     S.loaded = false; S.fresh = false; S.rows = []; S.updates = []; S.updatesReady = false;
     $('app').style.display = 'none'; $('loading').style.display = '';
     $('loginScreen').classList.add('open');
@@ -1906,6 +1907,7 @@ function retryLogin() {
 function logout(silent) {
   try { if (gisInitialized) google.accounts.id.disableAutoSelect(); } catch (e) {}
   clearToken();
+  attachmentMemoryCache_.clear();
   try { localStorage.removeItem(CACHE_KEY()); localStorage.removeItem('hpo_cache_' + ((S.user && S.user.email) || '')); localStorage.removeItem('hpo_last'); } catch (e) {}
   location.reload();
 }
@@ -2784,6 +2786,7 @@ function applyUpdates(data) {
   $('btnAddUpdate').title = 'Publish for all sellers';
   renderUpdates();
   saveCache();
+  scheduleAttachmentPreviews_(); // Cache recent images in background; never block dashboard/login.
 }
 function refreshUpdates() {
   if (!S.loaded || S.updatesRefreshing || S.updatesPending || !tokenValid()) return Promise.resolve();
@@ -2854,21 +2857,54 @@ function closeUpdateComposer() {
   $('updatesComposer').hidden = true;
   $('updatesComposer').reset();
 }
+// Resize/compress large new photos locally BEFORE uploading (keeps Drive private).
+// Small images and PDF files are never changed. No external compression service.
+async function optimizeUpdatePhoto_(file) {
+  if (!file || !String(file.type).startsWith('image/') || file.size < 180 * 1024) return file;
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type)) return file;
+  if (!URL.createObjectURL || !HTMLCanvasElement.prototype.toBlob) return file;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve,reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Cannot process image.'));
+      el.src = url;
+    });
+    const maxSide = 1440;
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext('2d', {alpha:true});
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // WebP preserves transparent artwork and usually gives faster mobile previews.
+    const mime = 'image/webp';
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, mime, 0.80));
+    if (!blob || blob.type !== mime || blob.size >= file.size * .88) return file;
+    return new File([blob], String(file.name || 'update').replace(/\.[^.]+$/, '') + '.webp', {type:mime});
+  } catch (e) { return file; } // Unoptimized original remains available when conversion fails.
+  finally { URL.revokeObjectURL(url); }
+}
 async function readUpdateFile_(file) {
   if (!file) return null;
   const allowed = ['image/jpeg','image/png','image/webp','application/pdf'];
   const max = file.type === 'application/pdf' ? 4*1024*1024 : 3*1024*1024;
   if (!allowed.includes(file.type)) throw new Error('Please select a JPG, PNG, WebP, or PDF file.');
-  if (!file.size || file.size > max) throw new Error('File too large. Image max 3 MB; PDF max 4 MB.');
+  if (!file.size || file.size > (file.type === 'application/pdf' ? max : 12*1024*1024))
+    throw new Error('File too large. Images up to 12 MB can be optimized; PDFs max 4 MB.');
+  const optimized = await optimizeUpdatePhoto_(file);
+  if (optimized.size > max) throw new Error('Image remains too large after optimization (max 3 MB). Try a smaller photo.');
   const dataUrl = await new Promise((resolve,reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
     reader.onerror = () => reject(new Error('Could not read attachment.'));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(optimized);
   });
   const parts = dataUrl.split(',');
   if (parts.length !== 2 || !parts[1]) throw new Error('Could not process attachment.');
-  return {name:file.name, mimeType:file.type,base64:parts[1]};
+  return {name:optimized.name, mimeType:optimized.type, base64:parts[1]};
 }
 async function submitUpdate(event) {
   event.preventDefault();
@@ -2908,8 +2944,71 @@ function removeUpdate(id) {
 $('u_update_attachment').addEventListener('change', () => {
   if ($('u_update_attachment').files.length) $('u_attachment_remove').checked = false;
 });
+// FAST PRIVATE PREVIEW: two latest images are fetched opportunistically after Updates load.
+// Keep only in RAM for this signed-in page session. Never save sensitive files in localStorage.
+const attachmentMemoryCache_ = new Map();
+const ATTACHMENT_CACHE_LIMIT = 3;
+let attachmentPrefetchTimer_ = 0;
 let updateAttachmentObjectUrl = '';
 let updateAttachmentLoadId = 0;
+function attachmentKey_(u) {
+  return String(u.id) + '\u0000' + String(u.updatedAt || '') + '\u0000' +
+    String(u.attachmentName || '') + '\u0000' + String(u.attachmentType || '');
+}
+function attachmentCachePrune_() {
+  const valid = new Set((S.updates || []).filter(u => u.hasAttachment).map(attachmentKey_));
+  for (const key of attachmentMemoryCache_.keys()) {
+    if (!valid.has(key)) attachmentMemoryCache_.delete(key);
+  }
+  while (attachmentMemoryCache_.size > ATTACHMENT_CACHE_LIMIT) {
+    const oldestKey = attachmentMemoryCache_.keys().next().value;
+    attachmentMemoryCache_.delete(oldestKey);
+  }
+}
+function scheduleAttachmentPreviews_() {
+  if (attachmentPrefetchTimer_) clearTimeout(attachmentPrefetchTimer_);
+  if (!S.loaded || !S.fresh || document.hidden || !tokenValid()) return;
+  attachmentPrefetchTimer_ = setTimeout(() => {
+    attachmentPrefetchTimer_ = 0;
+    if (document.hidden || !S.loaded || !tokenValid() || S.fetching) return;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (connection && (connection.saveData || /^(slow-2g|2g)$/.test(connection.effectiveType || ''))) return;
+    attachmentCachePrune_();
+    // Preload only two most recent images, sequentially, so mobile login stays responsive.
+    const candidates = (S.updates || []).filter(u => u.hasAttachment &&
+      ['image/jpeg','image/png','image/webp'].includes(u.attachmentType)).slice(0,2);
+    (async () => {
+      for (const u of candidates) {
+        if (document.hidden || !tokenValid()) break;
+        try { await getPrivateAttachment_(u); } catch (e) { /* Clicking View will show an actionable error. */ }
+      }
+    })();
+  }, 1200);
+}
+function getPrivateAttachment_(u) {
+  const key = attachmentKey_(u);
+  if (attachmentMemoryCache_.has(key)) {
+    const cached = attachmentMemoryCache_.get(key);
+    attachmentMemoryCache_.delete(key);
+    attachmentMemoryCache_.set(key, cached); // LRU: most recently used entry last.
+    return cached.promise;
+  }
+  const entry = {promise:null};
+  entry.promise = api('getUpdateAttachment', {id:u.id}).then(r => {
+    const valid = ['image/jpeg','image/png','image/webp','application/pdf'];
+    if (!r || !valid.includes(r.mimeType) || !r.base64) throw new Error('Invalid attachment response.');
+    const decoded = atob(r.base64);
+    const bytes = new Uint8Array(decoded.length);
+    for (let i = 0; i < decoded.length; ++i) bytes[i] = decoded.charCodeAt(i);
+    return {blob:new Blob([bytes], {type:r.mimeType}), name:r.name || u.attachmentName || 'Attachment', mimeType:r.mimeType};
+  }).catch(err => {
+    if (attachmentMemoryCache_.get(key) === entry) attachmentMemoryCache_.delete(key);
+    throw err;
+  });
+  attachmentMemoryCache_.set(key,entry);
+  attachmentCachePrune_();
+  return entry.promise;
+}
 function closeUpdateAttachment() {
   ++updateAttachmentLoadId;
   $('updateAttachmentModal').hidden = true;
@@ -2925,23 +3024,18 @@ async function viewUpdateAttachment(id) {
   closeUpdateAttachment();
   const loadId = ++updateAttachmentLoadId;
   $('attachmentViewerName').textContent = update.attachmentName || 'Update attachment';
-  $('attachmentViewerBody').textContent = 'Loading attachment…';
-  $('updateAttachmentModal').hidden = false;
+  $('attachmentViewerBody').innerHTML = '<div class="attachment-status">Opening attachment…</div>';
+  $('updateAttachmentModal').hidden = false; // Pop-up opens immediately; cached images display instantly.
   try {
-    const r = await api('getUpdateAttachment',{id});
+    const r = await getPrivateAttachment_(update); // Reuses an already running preload, if any.
     if (loadId !== updateAttachmentLoadId) return;
-    const valid = ['image/jpeg','image/png','image/webp','application/pdf'];
-    if (!r || !valid.includes(r.mimeType) || !r.base64) throw new Error('Invalid attachment response.');
-    const decoded = atob(r.base64);
-    const bytes = new Uint8Array(decoded.length);
-    for (let i = 0; i < decoded.length; ++i) bytes[i] = decoded.charCodeAt(i);
-    updateAttachmentObjectUrl = URL.createObjectURL(new Blob([bytes], {type:r.mimeType}));
+    updateAttachmentObjectUrl = URL.createObjectURL(r.blob);
     const body = $('attachmentViewerBody');
     body.replaceChildren();
     if (r.mimeType === 'application/pdf') {
       const frame = document.createElement('iframe');
       frame.src = updateAttachmentObjectUrl;
-      frame.title = 'PDF: '+(r.name || 'Attachment');
+      frame.title = 'PDF: ' + r.name;
       body.appendChild(frame);
       $('attachmentOpenLink').href = updateAttachmentObjectUrl;
       $('attachmentOpenLink').hidden = false;
@@ -2953,8 +3047,8 @@ async function viewUpdateAttachment(id) {
     }
   } catch (e) {
     if (loadId === updateAttachmentLoadId) {
-      $('attachmentViewerBody').textContent = 'Could not load attachment. ' + e.message;
-      toast('Could not load attachment: '+e.message,true);
+      $('attachmentViewerBody').textContent = 'Could not open attachment. ' + e.message;
+      toast('Could not open attachment: ' + e.message,true);
     }
   }
 }
