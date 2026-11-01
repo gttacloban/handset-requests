@@ -1280,8 +1280,18 @@ a.nav-item:hover{color:#274ebd}
 @media(max-width:700px){.inventory-box{padding:10px}.inventory-box select{font-size:16px}}
 
 /* Handset-only dropdown with adjacent, read-only inventory quantity. */
-.handset-stock-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(124px,.72fr);gap:12px;align-items:end}
+.handset-stock-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(124px,.72fr);gap:12px;align-items:start}
 .handset-selector,.handset-stock-count{min-width:0}
+/* Match the label baseline and control height in both inventory columns. */
+.handset-stock-row .handset-selector > label,
+.handset-stock-row .handset-stock-count > label{
+  display:flex;align-items:center;min-height:20px;line-height:20px;margin:0 0 6px;
+}
+.inventory-box #f_handset_choice,
+.inventory-box #f_stock_available{
+  box-sizing:border-box;height:54px;min-height:54px;margin:0;
+}
+
 .inventory-box .stock-count-input{width:100%;min-width:0;max-width:100%;font-size:18px;font-weight:800;text-align:center;
   background:var(--bg);color:var(--ink);border:1px solid var(--line);cursor:default}
 .inventory-box .stock-count-input.stock-good{border-color:#16a34a}
