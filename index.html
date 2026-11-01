@@ -1263,42 +1263,6 @@ a.nav-item:hover{color:#274ebd}
   .workspace, #dashboardSection, #app { box-sizing:border-box; width:100%; min-width:0; max-width:100%; }
   .mobile-bottom-nav { width:100%; max-width:100%; }
 }
-
-/* Inventory selector (mobile and desktop; theme-aware). */
-.inventory-box{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card);min-width:0}
-.inventory-box select{width:100%;min-width:0;max-width:100%;font-size:15px;margin-top:8px}
-.inventory-box #f_handset_choice{margin-top:0;font-size:15px}
-.inventory-box #manualHandsetWrap{margin-top:10px}
-.inventory-box #manualHandsetWrap[hidden]{display:none}
-.inventory-box #manualHandsetWrap label{margin-bottom:4px}
-.inventory-box .stock-balance strong{font-weight:800;color:var(--ink)}
-.inventory-box .stock-item-code{opacity:.7}
-.stock-balance{margin-top:9px;padding:9px 11px;background:var(--bg);color:var(--muted);border-radius:8px;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
-.stock-balance[hidden]{display:none!important}
-.stock-balance.stock-good{border-left:3px solid #16a34a}
-.stock-balance.stock-low{border-left:3px solid #f59e0b}
-@media(max-width:700px){.inventory-box{padding:10px}.inventory-box select{font-size:16px}}
-
-/* Handset-only dropdown with adjacent, read-only inventory quantity. */
-.handset-stock-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(124px,.72fr);gap:12px;align-items:start}
-.handset-selector,.handset-stock-count{min-width:0}
-/* Match the label baseline and control height in both inventory columns. */
-.handset-stock-row .handset-selector > label,
-.handset-stock-row .handset-stock-count > label{
-  display:flex;align-items:center;min-height:20px;line-height:20px;margin:0 0 6px;
-}
-.inventory-box #f_handset_choice,
-.inventory-box #f_stock_available{
-  box-sizing:border-box;height:54px;min-height:54px;margin:0;
-}
-
-.inventory-box .stock-count-input{width:100%;min-width:0;max-width:100%;font-size:18px;font-weight:800;text-align:center;
-  background:var(--bg);color:var(--ink);border:1px solid var(--line);cursor:default}
-.inventory-box .stock-count-input.stock-good{border-color:#16a34a}
-.inventory-box .stock-count-input.stock-low{border-color:#e9a642}
-@media(max-width:450px){.handset-stock-row{grid-template-columns:minmax(0,1.35fr) minmax(105px,.75fr);gap:8px}}
-@media(max-width:350px){.handset-stock-row{grid-template-columns:minmax(0,1fr) 95px;gap:6px}
- .handset-stock-count label{font-size:11px}}
 </style>
 </head>
 <body>
@@ -1535,29 +1499,7 @@ a.nav-item:hover{color:#274ebd}
       <div><label>Customer Last Name <span class="req">*</span></label><input id="f_last" placeholder="e.g. Eiv" required></div>
       <div><label>Mobile # <span class="req">*</span></label><input id="f_mobile" inputmode="tel" placeholder="09XXXXXXXXX" required></div>
       <div><label>Request Date <span class="req">*</span></label><input id="f_date" type="date" required></div>
-      <div class="full inventory-box">
-        <div class="handset-stock-row">
-          <div class="handset-selector">
-            <label for="f_handset_choice">Handset Description <span class="req">*</span></label>
-            <select id="f_handset_choice" onchange="chooseStockItem()" required aria-label="Handset Description">
-              <option value="__select__" selected disabled>Select handset…</option>
-            </select>
-          </div>
-          <div class="handset-stock-count">
-            <label for="f_stock_available">Available Stock</label>
-            <input id="f_stock_available" class="stock-count-input" type="text" value="—" readonly
-                   aria-label="Available stock quantity" aria-live="polite" tabindex="-1">
-            <div id="stockItemId" class="hint" aria-live="polite">Item ID: —</div>
-          </div>
-        </div>
-        <input id="f_stock" type="hidden" value="">
-        <input id="f_handset" type="hidden" value="">
-        <div id="manualHandsetWrap" hidden>
-          <label for="f_handset_manual">Enter handset description</label>
-          <input id="f_handset_manual" autocomplete="off" placeholder="e.g. iPhone 17 Pro Max 256GB">
-        </div>
-        <div id="stockBalance" class="stock-balance" role="status" aria-live="polite" hidden></div>
-      </div>
+      <div><label>Handset Description <span class="req">*</span></label><input id="f_handset" list="dl_handset" placeholder="e.g. iPhone 17 Pro Max 256GB" required></div>
       <div>
         <div class="color-label-row">
           <label for="f_color">Exact Color <span class="req">*</span></label>
@@ -1582,7 +1524,7 @@ a.nav-item:hover{color:#274ebd}
           <option value="Latest Request">Latest Request</option>
         </select>
       </div>
-      <div class="adminonly"><label for="f_wl">Waitlist #</label><input id="f_wl" placeholder="Auto" autocomplete="off" inputmode="numeric"><div class="hint">Auto-generated when left blank. Separate from the inventory Item ID.</div></div>
+      <div class="adminonly"><label>Waitlist #</label><input id="f_wl" placeholder="Auto"><div class="hint">A unique waitlist reference number automatically generated by SAP Fiori.</div></div>
       <div class="adminonly"><label>Status</label><select id="f_status"></select></div>
       <div class="full selleronly"><div class="sellernote" id="sellerNote"></div></div>
       <div class="full"><label>Remarks</label><textarea id="f_remarks" rows="2"></textarea></div>
@@ -1652,7 +1594,6 @@ const CONFIG = {
 
 const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: false, loaded: false,
   page: 1, pageSize: 5, saving: false, saveClientId: '', editVersion: 0,
-  inventory: [], stockVerified: false, stockFetchSeq: 0,
   filter: { q: '', status: '', seller: '', type: '', category: '', dateFrom: '', dateTo: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false, updates: [], updatesReady: false, updatesPending: false, updatesRefreshing: false, updatesExpanded: false, updateEditingId: '' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1967,7 +1908,7 @@ const CACHE_KEY = () => 'hpo_cache_' + String((AUTH.profile && AUTH.profile.emai
 function saveCache() {
   if (!S.loaded || !S.user) return;
   try {
-    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), inventory: S.inventory, hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates }));
+    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates }));
     localStorage.setItem('hpo_last', S.user.email);
   } catch (e) {}
 }
@@ -2023,7 +1964,6 @@ function init(d) {
   S.colorSyncReady = Array.isArray(d.hiddenColors);
   S.hiddenColors = S.colorSyncReady ? [...new Set(d.hiddenColors.map(norm).filter(Boolean))] : [];
   S.admin = !!d.user.admin;
-  S.inventory = Array.isArray(d.inventory) ? d.inventory : (S.inventory || []);
   // Cached updates may appear instantly; live read always verifies central backend state.
   if (Array.isArray(d.updates)) S.updates = d.updates;
   // Embedded Globe logo is authoritative; ignore legacy server logo data.
@@ -2516,122 +2456,6 @@ function setRequestSaving(isSaving, message, failed) {
   status.textContent = message || '';
   status.className = 'form-save-message' + (failed ? ' error' : '');
 }
-/* ================= Inventory selection in New Request ================= */
-function stockColorFromDescription(description) {
-  const text = String(description || '').trim();
-  const colors = ['Twilight Blue','Aurora White','IceWhite','PlumPurple','Ultramarine',
-    'Burgundy','Graphite','Platinum','Lavender','Titanium','Glacier','Crystal',
-    'Silver','Orange','Purple','Violet','White','Black','Green','Gold','Gray',
-    'Grey','Blue','Pink','Cyan','Teal','Navy','Red','Grph','Blck','WtSlv',
-    'SvBlu','TViolet','Blk','Blu','Vlt','Crm','Grn','Lav','Violet','Silve…'];
-  return colors.find(c => text.toLowerCase().endsWith(c.toLowerCase())) || '';
-}
-function renderStockPicker(overrideCode) {
-  const sel = $('f_handset_choice');
-  const previous = overrideCode !== undefined ? String(overrideCode || '__manual__') : (sel.value || '__select__');
-  const inventory = Array.isArray(S.inventory) ? S.inventory : [];
-  const editing = S.rows.find(x => x.id === $('f_id').value);
-  const items = inventory.slice().sort((a,b) => a.description.localeCompare(b.description));
-  // Only stocked handset descriptions are offered for new requests.
-  // Keep the legacy manual selection ONLY when editing an existing unlisted request.
-  const legacyManual = previous === '__manual__' && !!editing;
-  sel.innerHTML = '<option value="__select__" disabled>Select handset…</option>' +
-    (legacyManual ? '<option value="__manual__">Existing unlisted handset</option>' : '') +
-    items.map(item => `<option value="${esc(item.code)}">${esc(item.description)}</option>`).join('');
-  if (previous !== '__select__' && previous !== '__manual__' && !Array.from(sel.options).some(o=>o.value===previous)) {
-    const item = inventory.find(x => x.code === previous);
-    const fallback = item ? item.description : ($('f_handset').value || 'Selected handset');
-    sel.add(new Option(fallback, previous));
-  }
-  sel.value = previous;
-  if (!sel.value) sel.value = '__select__';
-  showStockSelection();
-}
-function showStockSelection() {
-  const selected = $('f_handset_choice').value;
-  const manual = selected === '__manual__';
-  $('manualHandsetWrap').hidden = !manual;
-  $('f_handset_manual').required = manual;
-  $('f_stock').value = (selected !== '__manual__' && selected !== '__select__') ? selected : '';
-  updateStockBalance();
-}
-function updateStockBalance() {
-  const code = $('f_stock').value;
-  const box = $('stockBalance');
-  const count = $('f_stock_available');
-  $('stockItemId').textContent = code ? 'Item ID: ' + code : 'Item ID: —';
-  const chosen = $('f_handset_choice').value;
-  const manual = chosen === '__manual__';
-  count.value = '—';
-  count.classList.remove('stock-low', 'stock-good');
-  if (!code) {
-    box.className = 'stock-balance';
-    box.hidden = true;
-    box.textContent = '';
-    return;
-  }
-  box.hidden = false;
-  const item = (S.inventory || []).find(x => x.code === code);
-  if (!item) {
-    box.className = 'stock-balance stock-low';
-    box.textContent = 'Checking stock… The inventory may need to be refreshed.';
-    return;
-  }
-  const editing = S.rows.find(x => x.id === $('f_id').value);
-  const own = editing && editing.stockItemCode === code ? Number(editing.stockDeductedQty) || 0 : 0;
-  const available = Number(item.available) || 0;
-  const qty = Math.max(1, Number($('f_qty').value) || 1);
-  count.value = String(available);
-  const enough = available + own >= qty;
-  count.classList.add(enough && S.stockVerified ? 'stock-good' : 'stock-low');
-  box.className = 'stock-balance' + (enough && S.stockVerified ? ' stock-good' : ' stock-low');
-  // The adjacent Available Stock field already shows the quantity.
-  // Only display actionable warnings; omit the redundant deduction notice.
-  box.hidden = enough && S.stockVerified;
-  box.textContent = !S.stockVerified ? 'Checking live stock…' :
-    (enough ? '' : `Not enough stock for ${qty} unit${qty === 1 ? '' : 's'}.`);
-}
-function chooseStockItem() {
-  const choice = $('f_handset_choice').value;
-  const item = (S.inventory || []).find(x => x.code === choice);
-  if (item) {
-    $('f_handset').value = item.description;
-    $('f_handset_manual').value = '';
-    const hint = stockColorFromDescription(item.description);
-    $('f_color').value = hint || 'As listed';
-  } else if (choice === '__manual__') {
-    $('f_handset').value = $('f_handset_manual').value.trim();
-  } else {
-    $('f_handset').value = '';
-  }
-  showStockSelection();
-}
-function refreshInventoryForForm() {
-  const sequence = ++S.stockFetchSeq;
-  S.stockVerified = false;
-  updateStockBalance();
-  api('inventory').then(items => {
-    if (sequence !== S.stockFetchSeq) return;
-    if (!Array.isArray(items)) throw new Error('Invalid stock response');
-    S.inventory = items;
-    S.stockVerified = true;
-    renderStockPicker();
-  }).catch(err => {
-    if (sequence !== S.stockFetchSeq) return;
-    S.stockVerified = false;
-    $('f_stock_available').value = '—';
-    $('f_stock_available').classList.remove('stock-good');
-    $('f_stock_available').classList.add('stock-low');
-    $('stockBalance').className = 'stock-balance stock-low';
-    $('stockBalance').hidden = false;
-    $('stockBalance').textContent = 'Unable to verify live stock (' + (err.message || 'connection issue') + '). Please try again.';
-  });
-}
-$('f_qty').addEventListener('input', updateStockBalance);
-$('f_handset_manual').addEventListener('input', () => {
-  if ($('f_handset_choice').value === '__manual__') $('f_handset').value = $('f_handset_manual').value.trim();
-});
-
 function openForm(id) {
   if (S.saving) return; // Don't open another request before confirming the last save.
   const r = id ? S.rows.find(x => x.id === id) : null;
@@ -2649,24 +2473,18 @@ function openForm(id) {
   $('f_mobile').value = r ? r.mobile : '';
   $('f_date').value = r ? r.date : today();
   $('f_handset').value = r ? r.handset : '';
-  $('f_handset_manual').value = r && !r.stockItemCode ? r.handset : '';
-  $('f_handset_choice').value = '__select__';
   $('f_color').value = r ? r.color : '';
   $('f_qty').value = r ? r.qty : 1;
   $('f_type').value = r ? r.type : '';
   $('f_request_category').value = r ? (r.requestCategory || '') : '';
-  const selectedStockCode = r ? (r.stockItemCode || '') : '';
   $('f_seller').value = r ? r.seller : S.user.name;
   $('f_wl').value = r ? r.waitlist : '';
   $('f_status').value = r ? (S.statuses.find(s => sameStatus(s, r.status)) || r.status) : firstStatus();
   $('f_remarks').value = r ? r.remarks : '';
-  S.stockVerified = false;
-  renderStockPicker(r ? (selectedStockCode || '__manual__') : '__select__');
-  refreshInventoryForForm();
 
   document.querySelectorAll('.adminonly').forEach(el => el.style.display = S.admin ? '' : 'none');
   document.querySelectorAll('.selleronly').forEach(el => el.style.display = S.admin ? 'none' : '');
-  $('sellerNote').innerHTML = `New requests are saved as <b>${esc(statusLabel(firstStatus()))}</b>. After saving, only the admin can edit or change the status.`;
+  $('sellerNote').innerHTML = `New requests are saved as <b>${esc(statusLabel(firstStatus()))}</b> and get a waitlist # automatically. After saving, only the admin can edit or change the status.`;
 
   $('modal').classList.add('open');
   document.body.classList.add('noscroll');
@@ -2702,28 +2520,15 @@ function submitForm(e) {
     handset: $('f_handset').value.trim(), color: $('f_color').value.trim(),
     qty: Number($('f_qty').value) || 1, type: $('f_type').value,
     requestCategory: $('f_request_category').value,
-    stockItemCode: $('f_stock').value,
     seller: $('f_seller').value || S.user.name,
     waitlist: S.admin ? $('f_wl').value.trim() : '',
     status: S.admin ? $('f_status').value : firstStatus(),
     remarks: $('f_remarks').value.trim(),
     clientSaveId: S.saveClientId || (S.saveClientId = newSaveIdentifier())
   };
-  if ($('f_handset_choice').value === '__select__') return toast('Please select a handset description.', true);
-  if (!o.handset) return toast('Handset Description is required.', true);
   if (!/^\+?\d{10,13}$/.test(o.mobile)) return toast('Mobile # is not valid', true);
   if (!o.type || !o.seller) return toast('Select transaction type and seller', true);
   if (!['Standard Request', 'Latest Request'].includes(o.requestCategory)) return toast('Select request category', true);
-  if (!Number.isSafeInteger(o.qty) || o.qty < 1) return toast('Quantity must be a whole number.', true);
-  if (o.stockItemCode && !S.stockVerified) return toast('Please verify live stock before saving.', true);
-  if (o.stockItemCode) {
-    const item = S.inventory.find(x => x.code === o.stockItemCode);
-    const current = S.rows.find(x => x.id === o.id);
-    const ownQty = current && current.stockItemCode === o.stockItemCode ? (Number(current.stockDeductedQty) || 0) : 0;
-    if (!item || o.qty > item.available + ownQty) {
-      return toast('Not enough stock. Refresh the stock list and choose an available item.', true);
-    }
-  }
 
   const editing = !!o.id;
   if (editing && !S.admin) return toast('Only the admin can edit.', true);
@@ -2741,10 +2546,6 @@ function submitForm(e) {
       setRequestSaving(false, '');
       closeForm();
       render();
-      // Refresh availability after a confirmed submission. This is read-only.
-      api('inventory').then(items => {
-        if (Array.isArray(items)) { S.inventory = items; saveCache(); }
-      }).catch(() => {});
       // Confirmation is already shown during the save flow; avoid a duplicate popup.
     })
     .catch(err => {
@@ -2752,7 +2553,6 @@ function submitForm(e) {
       // the new backend is deployed because the clientSaveId is unchanged.
       setRequestSaving(false, 'Save not confirmed: ' + err.message + '. Your details are still here; you can retry.', true);
       toast('Save not confirmed — please check the form.', true);
-      refreshInventoryForForm();
     });
 }
 
