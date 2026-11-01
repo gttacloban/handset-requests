@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1f4d">
 <!-- Installable Globe handset tracker (PWA) -->
 <link rel="manifest" href="./manifest.webmanifest">
@@ -1045,6 +1045,165 @@ a.nav-item{text-decoration:none}
 a.nav-item:visited{color:inherit}
 a.nav-item:hover{color:#274ebd}
 :root[data-theme="dark"] a.nav-item:hover{color:#bcd0ff}
+
+/* ==========================================
+   Mobile-first workspace navigation and layout — November 2026.
+   All existing request actions, permissions, and API calls remain unchanged.
+   ========================================== */
+.mobile-bottom-nav{display:none}
+@media (max-width:700px){
+  html{scroll-padding-top:65px}
+  body{min-width:0;overscroll-behavior-x:none}
+  .workspace,#dashboardSection,#app{width:100%;min-width:0;max-width:100%}
+  .app-shell{width:100%;min-width:0}
+  header.topbar{min-height:59px;padding:8px 12px;z-index:25;gap:8px}
+  .topbar-left{min-width:0;flex:1 1 0}
+  .topbar-head{min-width:0}
+  .topbar-crumb{display:none}
+  .topbar h1{font-size:17px;max-width:42vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .menu-toggle{min-width:42px;min-height:42px;flex-shrink:0}
+  header.topbar .hright{flex:0 0 auto;gap:7px}
+  .topbar .theme-toggle{min-width:42px;min-height:42px}
+  .topbar .who{width:43px;height:43px;min-width:43px;min-height:43px;
+    display:flex;align-items:center;justify-content:center;padding:3px!important;border-radius:50%!important}
+  .topbar .avatar{width:35px;height:35px}
+  #dashboardSection{padding:14px 12px calc(88px + env(safe-area-inset-bottom,0px))}
+  /* A single active mobile screen avoids an extremely long dashboard and tiny controls. */
+  body.mobile-app-ready #app > .updates-panel,
+  body.mobile-app-ready #app > .welcome-row,
+  body.mobile-app-ready #app > .rolebar,
+  body.mobile-app-ready #app > .kpis,
+  body.mobile-app-ready #app > .charts-grid,
+  body.mobile-app-ready #app > #stockSection,
+  body.mobile-app-ready #app > .insights-row,
+  body.mobile-app-ready #app > #requestsSection,
+  body.mobile-app-ready #app > .requests-panel,
+  body.mobile-app-ready #app > .dashboard-footer {display:none}
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .welcome-row,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .rolebar,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .kpis,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .charts-grid,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > #stockSection,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .insights-row,
+  body.mobile-app-ready[data-mobile-view="requests"] #app > #requestsSection,
+  body.mobile-app-ready[data-mobile-view="requests"] #app > .requests-panel,
+  body.mobile-app-ready[data-mobile-view="updates"] #app > .updates-panel,
+  body.mobile-app-ready[data-mobile-view="analytics"] #app > .charts-grid,
+  body.mobile-app-ready[data-mobile-view="stock"] #app > #stockSection,
+  body.mobile-app-ready[data-mobile-view="stock"] #app > .insights-row,
+  body.mobile-app-ready #app > .dashboard-footer{display:block}
+  /* Restore each visible section's native layout after switching mobile screens. */
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .kpis,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .charts-grid,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .insights-row,
+  body.mobile-app-ready[data-mobile-view="analytics"] #app > .charts-grid,
+  body.mobile-app-ready[data-mobile-view="stock"] #app > .insights-row{display:grid}
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .welcome-row,
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .rolebar,
+  body.mobile-app-ready[data-mobile-view="requests"] #app > #requestsSection,
+  body.mobile-app-ready[data-mobile-view="stock"] #app > #stockSection{display:flex}
+  .welcome-row{gap:8px;margin-bottom:12px}
+  .welcome-row h2{font-size:19px;line-height:1.2}
+  .welcome-row .tags{font-size:11px;line-height:1.45}
+  .rolebar{line-height:1.5}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .kpi{min-height:118px;padding:13px 12px}
+  .kpi .tile-icon{width:34px;height:34px;font-size:18px}
+  .kpi .tile-number{font-size:29px}
+  .kpi .l{font-size:12px;line-height:1.2}
+  .kpi .s{font-size:11px;line-height:1.3}
+  .panel{border-radius:14px;padding:14px}
+  .panel-heading h3{font-size:16px}
+  .status-chart{display:flex;flex-direction:column;align-items:center;gap:16px;padding:6px 0 3px}
+  .donut-chart{width:182px;height:182px;flex:0 0 182px;max-width:100%}
+  .donut-center{inset:32px}
+  .donut-center .donut-count{font-size:31px}
+  .donut-center .donut-caption{font-size:11px}
+  .donut-slice-label{font-size:10px}
+  .status-legend{width:100%;max-width:none;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+  .legend-row{min-width:0;font-size:12px;gap:6px;line-height:1.4}
+  .legend-dot{width:10px;height:10px;flex:0 0 10px}
+  .legend-label{min-width:0}
+  .chart-panel{min-height:0}
+  .updates-panel{border-radius:14px;padding:15px}
+  .updates-subtitle{font-size:12px}
+  .updates-add{min-height:44px;padding:10px 14px}
+  #requestsSection{margin-top:3px}
+  .requests-panel{padding:12px;border-radius:14px}
+  .filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:15px}
+  .filters > #fl_q,.filters > #fl_category{grid-column:1/-1}
+  .filters > #fl_status,.filters > #fl_seller{grid-column:auto}
+  .filters > #fl_type{grid-column:1/-1}
+  .filters input,.filters select,.filters .date-field input[type=date]{min-width:0;min-height:46px;border-radius:10px}
+  .filters .date-range{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .filters .date-field{min-width:0}
+  .filters .date-field span{font-size:12px}
+  .filters .date-clear{min-height:42px}
+  .cards{gap:12px}
+  .rcard{padding:13px;border-radius:12px;overflow:hidden}
+  .rcard .nm{font-size:16px;line-height:1.3;overflow-wrap:anywhere}
+  .rcard .id{font-size:12px;max-width:38%;white-space:normal;overflow-wrap:anywhere}
+  .rcard .dev{font-size:14px;overflow-wrap:anywhere}
+  .rcard .tel{font-size:14px;display:inline-block;margin-top:3px}
+  .chip{font-size:12px;padding:5px 9px;line-height:1.35}
+  .rcard .r3{gap:8px;flex-wrap:wrap;align-items:center}
+  .rcard .r3 > span:first-child{min-width:0;flex:1 1 48%}
+  .rcard .r3 > span:last-child{min-width:0;flex:0 0 auto;gap:3px;align-items:center}
+  .rcard .r3 .icon{min-width:40px;min-height:42px;display:inline-flex;align-items:center;justify-content:center;
+    font-size:18px;margin:0;padding:6px 8px}
+  .rcard .st{min-height:38px;max-width:100%;font-size:13px}
+  .requests-pagination{padding:13px 0 4px;gap:12px}
+  .page-navigation{width:100%;gap:5px}
+  .page-navigation .page-nav-btn{min-height:44px;flex:1 1 0;min-width:0;padding:9px 8px;white-space:nowrap}
+  .page-indicator{flex:0 0 auto;font-size:12px;min-width:64px}
+  .page-size-select{min-height:43px}
+  .dashboard-footer{padding-bottom:6px;margin-top:24px;line-height:1.6}
+  .dashboard-footer .footer-line{line-height:1.4}
+  /* Phone tab bar: accessible and reachable with one thumb. */
+  body.mobile-app-ready .mobile-bottom-nav{display:grid}
+  .mobile-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:32;
+    grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;
+    padding:7px 8px calc(7px + env(safe-area-inset-bottom,0px));gap:5px;
+    background:var(--card);border-top:1px solid var(--line);
+    box-shadow:0 -8px 24px rgba(5,24,55,.10)}
+  .mobile-tab{min-height:53px;min-width:0;border:0;background:transparent;color:var(--muted);
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    gap:3px;border-radius:11px;padding:6px 2px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+  .mobile-tab svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.9;
+    stroke-linecap:round;stroke-linejoin:round}
+  .mobile-tab.active{color:var(--accent);background:var(--fr-bg)}
+  .mobile-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  body.sidebar-open .mobile-bottom-nav{visibility:hidden;pointer-events:none}
+  .fab{display:none!important} /* New Request is now a labeled mobile tab. */
+  .modal .box{min-height:100dvh;padding-bottom:calc(95px + env(safe-area-inset-bottom,0px))}
+  .modal .box .actions{gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+  .modal .box .actions .btn{min-height:46px}
+  .modal .fgrid{gap:12px}
+  .modal .fgrid input,.modal .fgrid select,.modal .fgrid textarea{min-height:46px}
+  #loginScreen,#deniedScreen{padding:12px;align-items:safe center}
+  #loginScreen .sbox,#deniedScreen .sbox{margin:auto;max-width:440px}
+  #loginScreen .slogo{max-height:min(38dvh,280px)}
+  .toast{bottom:calc(83px + env(safe-area-inset-bottom,0px))}
+  :root:is([data-theme="dark"],[data-theme="globe"]) .mobile-bottom-nav{
+    background:#101d31;border-color:#344763;box-shadow:0 -9px 26px rgba(0,0,0,.35)}
+  :root[data-theme="globe"] .mobile-bottom-nav{background:rgba(8,24,48,.96)}
+}
+@media(max-width:359px){
+  /* Keep two compact filter columns even on 320px phones. */
+  .filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .filters > #fl_q,.filters > #fl_category{grid-column:1/-1}
+  .filters > #fl_status,.filters > #fl_seller{grid-column:auto}
+  .filters > #fl_type{grid-column:1/-1}
+  .filters .date-range{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .date-range-title,.date-clear,.date-range-message{grid-column:1/-1}
+  .status-legend{grid-template-columns:1fr 1fr}
+  .topbar h1{font-size:16px;max-width:39vw}
+  .rcard .r3 > span:last-child{width:100%;justify-content:flex-end}
+}
+@media(min-width:701px) and (max-width:950px) and (orientation:landscape) and (pointer:coarse){
+  .mobile-bottom-nav{display:none!important}
+}
+
 </style>
 </head>
 <body>
@@ -1253,6 +1412,23 @@ a.nav-item:hover{color:#274ebd}
     </main>
   </div>
 </div>
+
+
+<!-- Phone navigation: remains hidden on desktop and before a successful sign-in. -->
+<nav class="mobile-bottom-nav" id="mobileNav" aria-label="Mobile navigation">
+  <button type="button" class="mobile-tab active" data-mobile-target="dashboard" onclick="navigateTo('dashboard')" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21h-7v-7h-4v7H3z"/></svg><span>Home</span>
+  </button>
+  <button type="button" class="mobile-tab" data-mobile-target="requests" onclick="navigateTo('requests')">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>Requests</span>
+  </button>
+  <button type="button" class="mobile-tab" data-mobile-target="updates" onclick="navigateTo('updates')">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-2-3v-4a5 5 0 0 0-10 0v4zM10 20h4"/></svg><span>Updates</span>
+  </button>
+  <button type="button" class="mobile-tab" onclick="openForm()">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg><span>New</span>
+  </button>
+</nav>
 
 <!-- Request form -->
 <div class="modal" id="modal" onclick="if(event.target===this)closeForm()">
@@ -1701,6 +1877,8 @@ function init(d) {
   $('fab').style.display = '';
   $('loading').style.display = 'none';
   $('app').style.display = 'block';
+  document.body.classList.add('mobile-app-ready');
+  if (!document.body.dataset.mobileView) document.body.dataset.mobileView = 'dashboard';
   render();
   // Always refresh from the server, even when cached data was displayed.
   if (S.fresh) refreshUpdates();
@@ -1819,9 +1997,28 @@ function toggleSidebar(force) {
 }
 function navigateTo(area) {
   const targets={dashboard:'dashboardSection',updates:'updatesSection',requests:'requestsSection',stock:'stockSection',analytics:'analyticsSection'};
-  const el=$(targets[area] || 'dashboardSection');
+  const section = targets[area] ? area : 'dashboard';
+  document.querySelectorAll('.nav-item[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===section));
+  if (window.matchMedia('(max-width:700px)').matches) {
+    // On a phone, the sections are separate screens rather than one very long page.
+    document.body.dataset.mobileView = section;
+    document.querySelectorAll('.mobile-tab[data-mobile-target]').forEach(btn=>{
+      const active = btn.dataset.mobileTarget === section;
+      btn.classList.toggle('active',active);
+      if (active) btn.setAttribute('aria-current','page');
+      else btn.removeAttribute('aria-current');
+    });
+    const names={dashboard:'Dashboard',updates:'Updates',requests:'All Requests',stock:'Stock Allocation',analytics:'Analytics'};
+    const title=document.querySelector('.topbar h1');
+    if (title) title.textContent=names[section];
+    toggleSidebar(false);
+    window.scrollTo({top:0,behavior:'instant'});
+    return;
+  }
+  const title=document.querySelector('.topbar h1');
+  if (title) title.textContent='Dashboard';
+  const el=$(targets[section]);
   if (el) el.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
-  document.querySelectorAll('.nav-item[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===area));
   toggleSidebar(false);
 }
 (function initDashboardDate(){
