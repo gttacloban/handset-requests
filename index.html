@@ -1289,6 +1289,22 @@ a.nav-item:hover{color:#274ebd}
 .attachment-open-link{color:var(--accent);font-size:13px;font-weight:800;padding:9px;text-decoration:underline}
 @media(max-width:700px){.attachment-overlay{padding:8px}.attachment-dialog{max-height:calc(100dvh - 16px)}.attachment-dialog-content{max-height:calc(100dvh - 145px)}.attachment-dialog-content img{max-height:calc(100dvh - 178px)}}
 
+/* Magnifying-glass viewer for desktop Update images, plus an accessible Zoom/Fit button. */
+.attachment-zoom-toggle[hidden]{display:none!important}
+.attachment-zoom-toggle{min-height:38px;flex:none;padding:7px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:9px;font:inherit;font-size:12px;font-weight:750;cursor:pointer;white-space:nowrap}
+.attachment-zoom-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.attachment-image-stage{position:relative;display:inline-block;flex:none;max-width:100%;line-height:0;vertical-align:middle}
+.attachment-dialog-content .attachment-image-stage > img{max-width:100%;max-height:calc(100dvh - 185px);width:auto;height:auto;object-fit:contain;display:block}
+.attachment-dialog-content.attachment-zoomed{justify-content:flex-start;align-items:flex-start}
+.attachment-dialog-content.attachment-zoomed .attachment-image-stage{max-width:none;max-height:none}
+.attachment-dialog-content.attachment-zoomed .attachment-image-stage > img{max-width:none;max-height:none;width:100%;height:100%;cursor:move}
+.attachment-magnifier{position:absolute;z-index:2;width:170px;height:170px;border:3px solid #fff;border-radius:50%;box-shadow:0 8px 25px #0008,0 0 0 1px #56709a;pointer-events:none;background-color:#fff;background-repeat:no-repeat;opacity:0;transition:opacity .12s ease}
+.attachment-image-stage.magnifier-visible .attachment-magnifier{opacity:1}
+@media(hover:hover) and (pointer:fine){.attachment-image-stage:not(.stage-zoomed) > img{cursor:zoom-in}}
+@media(hover:none),(pointer:coarse){.attachment-magnifier{display:none!important}}
+@media(max-width:700px){.attachment-dialog-head{gap:6px;padding:10px}.attachment-zoom-toggle{padding:7px 9px}.attachment-magnifier{display:none!important}}
+
+
 
 /* Desktop sidebar branding: keep the entire Globe wordmark below the browser edge. */
 @media (min-width: 701px) {
@@ -1313,36 +1329,7 @@ a.nav-item:hover{color:#274ebd}
   }
 }
 
-/* Make the Updates message label stand out in every appearance mode. */
-.updates-compose label.message-all-sellers-label{
-  color:#c81e34;
-  font-size:18px;
-  font-weight:900;
-  line-height:1.45;
-  margin-bottom:9px;
-}
-:root:is([data-theme="dark"],[data-theme="globe"]) .updates-compose label.message-all-sellers-label{
-  color:#ff6579;
-}
-@media(max-width:700px){
-  .updates-compose label.message-all-sellers-label{font-size:17px}
-}
-
-/* Style the PUBLISHED Updates message, not only the admin compose label. */
-#updatesList .updates-entry .updates-message {
-  color: #c62828;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-:root:is([data-theme="dark"],[data-theme="globe"]) #updatesList .updates-entry .updates-message {
-  color: #ff7081;
-}
-@media (max-width: 700px) {
-  #updatesList .updates-entry .updates-message {font-size: 17px;}
-}
+/* Updates messages and admin message label use the original neutral styling. */
 </style>
 </head>
 <body>
@@ -1442,7 +1429,7 @@ a.nav-item:hover{color:#274ebd}
               <div><label for="u_update_title">Update title</label><input id="u_update_title" maxlength="120" placeholder="e.g. New stock allocation guidelines" required></div>
               <div><label for="u_update_type">Category</label><select id="u_update_type"><option>Announcement</option><option>Change</option><option>Notification</option></select></div>
             </div>
-            <div><label class="message-all-sellers-label" for="u_update_message">Message to all sellers</label>
+            <div><label for="u_update_message">Message to all sellers</label>
               <textarea id="u_update_message" maxlength="1200" rows="3" placeholder="Type the announcement, change, or notification here..." required></textarea>
               <div class="updates-compose-hint">Published updates appear for every signed-in Seller and Admin.</div>
             </div>
@@ -1580,6 +1567,7 @@ a.nav-item:hover{color:#274ebd}
   <div class="attachment-dialog">
     <div class="attachment-dialog-head">
       <div class="attachment-dialog-name" id="attachmentViewerName">Attachment</div>
+      <button type="button" class="attachment-zoom-toggle" id="attachmentZoomToggle" onclick="toggleAttachmentZoom()" aria-pressed="false" hidden>🔍 Zoom 2×</button>
       <button type="button" class="attachment-close" aria-label="Close attachment" onclick="closeUpdateAttachment()">×</button>
     </div>
     <div class="attachment-dialog-content" id="attachmentViewerBody"><div class="attachment-status">Loading attachment…</div></div>
@@ -3079,10 +3067,73 @@ function getPrivateAttachment_(u) {
   attachmentCachePrune_();
   return entry.promise;
 }
+// Enlarge a private image inside the existing preview. The attachment is never
+// sent to third-party zoom services or opened as a public URL.
+let attachmentImageFitSize_ = null;
+function toggleAttachmentZoom() {
+  const content = $('attachmentViewerBody');
+  const stage = content.querySelector('.attachment-image-stage');
+  const img = stage && stage.querySelector('img');
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const isZoomed = !content.classList.contains('attachment-zoomed');
+  if (isZoomed) {
+    // Take actual displayed dimensions before enlarging, avoiding a layout jump.
+    const rect = img.getBoundingClientRect();
+    attachmentImageFitSize_ = {w:rect.width,h:rect.height};
+    stage.style.width = (rect.width * 2) + 'px';
+    stage.style.height = (rect.height * 2) + 'px';
+    stage.classList.add('stage-zoomed');
+    content.classList.add('attachment-zoomed');
+    stage.classList.remove('magnifier-visible');
+    content.scrollLeft = Math.max(0, (content.scrollWidth - content.clientWidth) / 2);
+    content.scrollTop = Math.max(0, (content.scrollHeight - content.clientHeight) / 2);
+  } else {
+    stage.style.removeProperty('width');
+    stage.style.removeProperty('height');
+    stage.classList.remove('stage-zoomed');
+    content.classList.remove('attachment-zoomed');
+    content.scrollLeft = content.scrollTop = 0;
+    attachmentImageFitSize_ = null;
+  }
+  $('attachmentZoomToggle').textContent = isZoomed ? '🔎 Fit Image' : '🔍 Zoom 2×';
+  $('attachmentZoomToggle').setAttribute('aria-pressed', String(isZoomed));
+}
+function prepareAttachmentMagnifier_(img, stage, sourceUrl) {
+  // A real lens: move the mouse over an image to see the area under the
+  // pointer at 2.5x. Only activate for mouse/trackpad, not touch devices.
+  if (!window.matchMedia || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  const lens = document.createElement('div');
+  lens.className = 'attachment-magnifier';
+  lens.setAttribute('aria-hidden', 'true');
+  lens.style.backgroundImage = 'url("' + sourceUrl + '")';
+  stage.appendChild(lens);
+  const factor = 2.5;
+  img.addEventListener('pointermove', e => {
+    if (stage.classList.contains('stage-zoomed')) return;
+    const r = img.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const x = Math.min(r.width, Math.max(0, e.clientX - r.left));
+    const y = Math.min(r.height, Math.max(0, e.clientY - r.top));
+    const l = lens.offsetWidth, h = lens.offsetHeight;
+    lens.style.left = Math.min(Math.max(x - l/2, 0), Math.max(r.width - l, 0)) + 'px';
+    lens.style.top = Math.min(Math.max(y - h/2, 0), Math.max(r.height - h, 0)) + 'px';
+    lens.style.backgroundSize = (r.width * factor) + 'px ' + (r.height * factor) + 'px';
+    lens.style.backgroundPosition = (l/2 - x*factor) + 'px ' + (h/2 - y*factor) + 'px';
+    stage.classList.add('magnifier-visible');
+  });
+  img.addEventListener('pointerleave', () => stage.classList.remove('magnifier-visible'));
+  img.addEventListener('click', () => { if (!stage.classList.contains('stage-zoomed')) toggleAttachmentZoom(); });
+}
 function closeUpdateAttachment() {
   ++updateAttachmentLoadId;
   $('updateAttachmentModal').hidden = true;
-  $('attachmentViewerBody').replaceChildren();
+  const content = $('attachmentViewerBody');
+  content.replaceChildren();
+  content.classList.remove('attachment-zoomed');
+  $('attachmentZoomToggle').hidden = true;
+  $('attachmentZoomToggle').setAttribute('aria-pressed','false');
+  $('attachmentZoomToggle').textContent = '🔍 Zoom 2×';
+  attachmentImageFitSize_ = null;
   $('attachmentOpenLink').hidden = true;
   $('attachmentOpenLink').removeAttribute('href');
   if (updateAttachmentObjectUrl) URL.revokeObjectURL(updateAttachmentObjectUrl);
@@ -3110,10 +3161,15 @@ async function viewUpdateAttachment(id) {
       $('attachmentOpenLink').href = updateAttachmentObjectUrl;
       $('attachmentOpenLink').hidden = false;
     } else {
+      const stage = document.createElement('div');
+      stage.className = 'attachment-image-stage';
       const img = document.createElement('img');
       img.alt = r.name || 'Update image';
       img.src = updateAttachmentObjectUrl;
-      body.appendChild(img);
+      stage.appendChild(img);
+      body.appendChild(stage);
+      $('attachmentZoomToggle').hidden = false;
+      prepareAttachmentMagnifier_(img, stage, updateAttachmentObjectUrl);
     }
   } catch (e) {
     if (loadId === updateAttachmentLoadId) {
