@@ -1263,6 +1263,33 @@ a.nav-item:hover{color:#274ebd}
   .workspace, #dashboardSection, #app { box-sizing:border-box; width:100%; min-width:0; max-width:100%; }
   .mobile-bottom-nav { width:100%; max-width:100%; }
 }
+
+/* Private image/PDF attachments in team Updates */
+.update-attachment-field {margin-top:12px;padding:11px 12px;border:1px dashed var(--line);border-radius:10px}
+.update-attachment-field input[type=file]{background:var(--card);font-size:13px;min-width:0}
+.update-attachment-field .updates-compose-hint {margin-top:7px;line-height:1.45}
+.update-attachment-present{margin:8px 0;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.update-attachment-remove{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;margin:8px 0 0}
+.update-attachment-remove input{width:17px;height:17px;flex:none}
+.update-attachment-remove[hidden]{display:none!important}
+.update-view-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;margin-top:10px;padding:8px 13px;border:1px solid #97b8f3;border-radius:9px;background:#eaf2ff;color:#2353aa;font:inherit;font-weight:800;font-size:12px;cursor:pointer}
+.update-view-button:hover{filter:brightness(.97)}
+:root:is([data-theme="dark"],[data-theme="globe"]) .update-view-button{background:#233b64;border-color:#4c73b3;color:#d3e3ff}
+.attachment-overlay[hidden]{display:none!important}
+.attachment-overlay{position:fixed;inset:0;z-index:1001;background:rgba(5,13,29,.88);display:flex;align-items:center;justify-content:center;padding:14px}
+.attachment-dialog{width:min(920px,100%);max-height:calc(100dvh - 28px);display:flex;flex-direction:column;min-width:0;overflow:hidden;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px #0006}
+.attachment-dialog-head{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.attachment-dialog-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800}
+.attachment-close{min-width:44px;min-height:44px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:24px;border-radius:9px;cursor:pointer}
+.attachment-dialog-content{min-height:100px;max-height:calc(100dvh - 155px);overflow:auto;display:flex;align-items:center;justify-content:center;padding:12px}
+.attachment-dialog-content img{max-width:100%;max-height:calc(100dvh - 185px);object-fit:contain;display:block}
+.attachment-dialog-content iframe{width:100%;height:min(75dvh,730px);min-height:260px;border:0;background:white}
+.attachment-dialog-content .attachment-status{padding:24px;color:var(--muted);font-size:14px;text-align:center}
+.attachment-dialog-footer{padding:10px 16px;display:flex;justify-content:flex-end;gap:9px;border-top:1px solid var(--line)}
+.attachment-open-link[hidden]{display:none!important}
+.attachment-open-link{color:var(--accent);font-size:13px;font-weight:800;padding:9px;text-decoration:underline}
+@media(max-width:700px){.attachment-overlay{padding:8px}.attachment-dialog{max-height:calc(100dvh - 16px)}.attachment-dialog-content{max-height:calc(100dvh - 145px)}.attachment-dialog-content img{max-height:calc(100dvh - 178px)}}
+
 </style>
 </head>
 <body>
@@ -1366,6 +1393,13 @@ a.nav-item:hover{color:#274ebd}
             <div><label for="u_update_message">Message to all sellers</label>
               <textarea id="u_update_message" maxlength="1200" rows="3" placeholder="Type the announcement, change, or notification here..." required></textarea>
               <div class="updates-compose-hint">Published updates appear for every signed-in Seller and Admin.</div>
+            </div>
+            <div class="update-attachment-field">
+              <label for="u_update_attachment">📎 Attachment (optional)</label>
+              <input type="file" id="u_update_attachment" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">
+              <div class="updates-compose-hint">JPG / PNG / WebP: up to 3 MB. PDF: up to 4 MB. Photos open in a pop-up for all sellers.</div>
+              <div class="update-attachment-present" id="u_attachment_current" hidden></div>
+              <label class="update-attachment-remove" id="u_attachment_remove_wrap" hidden><input type="checkbox" id="u_attachment_remove"> Remove existing attachment</label>
             </div>
             <div class="updates-compose-actions">
               <button type="button" class="btn btn-light" onclick="closeUpdateComposer()">Cancel</button>
@@ -1488,6 +1522,21 @@ a.nav-item:hover{color:#274ebd}
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg><span>New</span>
   </button>
 </nav>
+
+<!-- Private attachment viewer; file is fetched only after Google-authenticated seller clicks View. -->
+<div class="attachment-overlay" id="updateAttachmentModal" hidden role="dialog" aria-modal="true" aria-label="Update attachment" onclick="if(event.target===this)closeUpdateAttachment()">
+  <div class="attachment-dialog">
+    <div class="attachment-dialog-head">
+      <div class="attachment-dialog-name" id="attachmentViewerName">Attachment</div>
+      <button type="button" class="attachment-close" aria-label="Close attachment" onclick="closeUpdateAttachment()">×</button>
+    </div>
+    <div class="attachment-dialog-content" id="attachmentViewerBody"><div class="attachment-status">Loading attachment…</div></div>
+    <div class="attachment-dialog-footer">
+      <a class="attachment-open-link" id="attachmentOpenLink" href="#" target="_blank" rel="noopener noreferrer" hidden>Open PDF in a new tab ↗</a>
+      <button class="btn btn-light" type="button" onclick="closeUpdateAttachment()">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- Request form -->
 <div class="modal" id="modal" onclick="if(event.target===this)closeForm()">
@@ -1864,9 +1913,9 @@ function logout(silent) {
 /* ================= API ================= */
 function api(action, params, retried) {
   return ensureToken().then(tok => {
-    // Time-limit only dashboard initialization. For writes, preserve Smart Save's
+    // Time-limit dashboard initialization and read-only attachment previews. For writes, preserve Smart Save's
     // existing server acknowledgement and idempotency protection.
-    const isInit = action === 'init';
+    const isInit = action === 'init' || action === 'getUpdateAttachment';
     const controller = isInit && typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), 30000) : null;
     return fetch(CONFIG.API_URL, {
@@ -2770,6 +2819,7 @@ function renderUpdates() {
           <time class="updates-date">${esc(date)}</time>
         </div>
         <p class="updates-message">${esc(u.message)}</p>
+        ${u.hasAttachment ? `<button type="button" class="update-view-button" data-view-update-attachment="${esc(u.id)}">${u.attachmentType === 'application/pdf' ? '📄 View PDF' : '🖼️ View Image'}</button>` : ''}
       </div>
       ${S.admin && S.updatesReady ? `<div class="updates-entry-actions">
         <button type="button" class="updates-action" data-edit-update="${esc(u.id)}">Edit</button>
@@ -2790,6 +2840,11 @@ function openUpdateComposer(id = '') {
   $('u_update_type').value = u ? u.type : 'Announcement';
   $('u_update_title').value = u ? u.title : '';
   $('u_update_message').value = u ? u.message : '';
+  $('u_update_attachment').value = '';
+  $('u_attachment_remove').checked = false;
+  $('u_attachment_current').hidden = !(u && u.hasAttachment);
+  $('u_attachment_current').textContent = u && u.hasAttachment ? 'Current: ' + (u.attachmentName || 'Attached file') : '';
+  $('u_attachment_remove_wrap').hidden = !(u && u.hasAttachment);
   $('btnSaveUpdate').textContent = u ? 'Save Changes' : 'Publish Update';
   $('updatesComposer').hidden = false;
   $('u_update_title').focus();
@@ -2799,19 +2854,46 @@ function closeUpdateComposer() {
   $('updatesComposer').hidden = true;
   $('updatesComposer').reset();
 }
-function submitUpdate(event) {
+async function readUpdateFile_(file) {
+  if (!file) return null;
+  const allowed = ['image/jpeg','image/png','image/webp','application/pdf'];
+  const max = file.type === 'application/pdf' ? 4*1024*1024 : 3*1024*1024;
+  if (!allowed.includes(file.type)) throw new Error('Please select a JPG, PNG, WebP, or PDF file.');
+  if (!file.size || file.size > max) throw new Error('File too large. Image max 3 MB; PDF max 4 MB.');
+  const dataUrl = await new Promise((resolve,reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read attachment.'));
+    reader.readAsDataURL(file);
+  });
+  const parts = dataUrl.split(',');
+  if (parts.length !== 2 || !parts[1]) throw new Error('Could not process attachment.');
+  return {name:file.name, mimeType:file.type,base64:parts[1]};
+}
+async function submitUpdate(event) {
   event.preventDefault();
   if (!S.admin || !S.updatesReady || S.updatesPending) return;
-  const u = { id: S.updateEditingId, type: $('u_update_type').value,
-    title: $('u_update_title').value.trim(), message: $('u_update_message').value.trim() };
-  if (!u.title || !u.message) return toast('Please provide both a title and a message.', true);
-  if (u.title.length > 120 || u.message.length > 1200) return toast('Update is too long.', true);
+  const u = { id:S.updateEditingId, type:$('u_update_type').value,
+    title:$('u_update_title').value.trim(), message:$('u_update_message').value.trim() };
+  if (!u.title || !u.message) return toast('Please provide both a title and a message.',true);
+  if (u.title.length > 120 || u.message.length > 1200) return toast('Update is too long.',true);
   S.updatesPending = true;
   $('btnSaveUpdate').disabled = true;
-  api('manageUpdate', { mode: 'save', update: u })
-    .then(data => { applyUpdates(data); closeUpdateComposer(); toast('Update shared with all sellers.'); })
-    .catch(e => toast('Could not publish: ' + e.message,true))
-    .finally(() => { S.updatesPending = false; $('btnSaveUpdate').disabled = false; });
+  $('btnSaveUpdate').textContent = 'Publishing…';
+  try {
+    const file = $('u_update_attachment').files[0];
+    if (file) u.attachment = await readUpdateFile_(file);
+    else if ($('u_attachment_remove').checked) u.removeAttachment = true;
+    const data = await api('manageUpdate', {mode:'save',update:u});
+    applyUpdates(data);
+    closeUpdateComposer();
+  } catch (e) {
+    toast('Could not publish: ' + e.message,true);
+  } finally {
+    S.updatesPending = false;
+    $('btnSaveUpdate').disabled = false;
+    $('btnSaveUpdate').textContent = S.updateEditingId ? 'Save Changes' : 'Publish Update';
+  }
 }
 function removeUpdate(id) {
   if (!S.admin || !S.updatesReady || S.updatesPending) return;
@@ -2823,10 +2905,65 @@ function removeUpdate(id) {
     .catch(e => toast('Could not delete: ' + e.message,true))
     .finally(() => { S.updatesPending = false; });
 }
+$('u_update_attachment').addEventListener('change', () => {
+  if ($('u_update_attachment').files.length) $('u_attachment_remove').checked = false;
+});
+let updateAttachmentObjectUrl = '';
+let updateAttachmentLoadId = 0;
+function closeUpdateAttachment() {
+  ++updateAttachmentLoadId;
+  $('updateAttachmentModal').hidden = true;
+  $('attachmentViewerBody').replaceChildren();
+  $('attachmentOpenLink').hidden = true;
+  $('attachmentOpenLink').removeAttribute('href');
+  if (updateAttachmentObjectUrl) URL.revokeObjectURL(updateAttachmentObjectUrl);
+  updateAttachmentObjectUrl = '';
+}
+async function viewUpdateAttachment(id) {
+  const update = S.updates.find(x => x.id === id);
+  if (!update || !update.hasAttachment) return toast('Attachment not found.',true);
+  closeUpdateAttachment();
+  const loadId = ++updateAttachmentLoadId;
+  $('attachmentViewerName').textContent = update.attachmentName || 'Update attachment';
+  $('attachmentViewerBody').textContent = 'Loading attachment…';
+  $('updateAttachmentModal').hidden = false;
+  try {
+    const r = await api('getUpdateAttachment',{id});
+    if (loadId !== updateAttachmentLoadId) return;
+    const valid = ['image/jpeg','image/png','image/webp','application/pdf'];
+    if (!r || !valid.includes(r.mimeType) || !r.base64) throw new Error('Invalid attachment response.');
+    const decoded = atob(r.base64);
+    const bytes = new Uint8Array(decoded.length);
+    for (let i = 0; i < decoded.length; ++i) bytes[i] = decoded.charCodeAt(i);
+    updateAttachmentObjectUrl = URL.createObjectURL(new Blob([bytes], {type:r.mimeType}));
+    const body = $('attachmentViewerBody');
+    body.replaceChildren();
+    if (r.mimeType === 'application/pdf') {
+      const frame = document.createElement('iframe');
+      frame.src = updateAttachmentObjectUrl;
+      frame.title = 'PDF: '+(r.name || 'Attachment');
+      body.appendChild(frame);
+      $('attachmentOpenLink').href = updateAttachmentObjectUrl;
+      $('attachmentOpenLink').hidden = false;
+    } else {
+      const img = document.createElement('img');
+      img.alt = r.name || 'Update image';
+      img.src = updateAttachmentObjectUrl;
+      body.appendChild(img);
+    }
+  } catch (e) {
+    if (loadId === updateAttachmentLoadId) {
+      $('attachmentViewerBody').textContent = 'Could not load attachment. ' + e.message;
+      toast('Could not load attachment: '+e.message,true);
+    }
+  }
+}
 $('updatesList').addEventListener('click', e => {
+  const view = e.target.closest('[data-view-update-attachment]');
   const edit = e.target.closest('[data-edit-update]');
   const del = e.target.closest('[data-delete-update]');
-  if (edit) openUpdateComposer(edit.getAttribute('data-edit-update'));
+  if (view) viewUpdateAttachment(view.getAttribute('data-view-update-attachment'));
+  else if (edit) openUpdateComposer(edit.getAttribute('data-edit-update'));
   else if (del) removeUpdate(del.getAttribute('data-delete-update'));
 });
 // Newly published notices become visible when staff return to the tab,
@@ -2847,7 +2984,7 @@ function toast(msg, err) {
   clearTimeout(tTimer);
   tTimer = setTimeout(() => t.style.display = 'none', err ? 5500 : 3200);
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeColorDropdown(); closeForm(); closeUsers(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUpdateAttachment(); closeColorDropdown(); closeForm(); closeUsers(); } });
 
 /* ================= Start login without waiting for Google SDK ================= */
 (function bootstrapAuth() {
