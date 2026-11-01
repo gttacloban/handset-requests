@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b1f4d">
-  <meta name="description" content="ثبّت Globe Handset Requests على الشاشة الرئيسية للموبايل.">
+  <meta name="description" content="Install Globe Handset Requests on your phone’s home screen.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" href="./icon-192.png">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Handset Requests">
-  <title>تثبيت Globe Handset Requests</title>
+  <title>Install Globe Handset Requests</title>
   <style>
     :root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
     *,*::before,*::after{box-sizing:border-box}
@@ -36,18 +36,18 @@
 </head>
 <body>
   <main class="card">
-    <img class="logo" src="./icon-192.png" alt="شعار Globe">
+    <img class="logo" src="./icon-192.png" alt="Globe logo">
     <div class="eyebrow">GLOBE • HANDSET TRACKER</div>
-    <h1>ثبّت البرنامج على شاشة الموبايل</h1>
-    <p>وصول أسرع إلى <strong>Handset Pre-Order &amp; Requests</strong> من الشاشة الرئيسية، مع شعار Globe وواجهة مستقلة عند دعم الجهاز.</p>
-    <button type="button" id="installBtn">📲 تثبيت على الشاشة الرئيسية</button>
+    <h1>Install Handset Requests on Your Phone</h1>
+    <p>Get quick access to <strong>Handset Pre-Order &amp; Requests</strong> from your home screen with the Globe icon. On supported devices, it opens like a standalone app.</p>
+    <button type="button" id="installBtn">📲 Add to Home Screen</button>
     <div id="status" role="status" aria-live="polite"></div>
-    <a class="secondary" href="./">فتح البرنامج مباشرة ←</a>
-    <section class="help" id="help" aria-label="خطوات التثبيت">
-      <h2>طريقة التثبيت</h2>
-      <p id="helpText"><span class="device">Android:</span> افتح القائمة ⋮ في Chrome، ثم اختر <strong>Install app</strong> أو <strong>Add to Home screen</strong>.<br><span class="device">iPhone:</span> افتح قائمة المشاركة ⬆ في المتصفح واختر <strong>Add to Home Screen</strong> ثم Add.</p>
+    <a class="secondary" href="./">Open the App →</a>
+    <section class="help" id="help" aria-label="Installation instructions">
+      <h2>How to Install</h2>
+      <p id="helpText"><span class="device">Android:</span> Open the ⋮ menu in Chrome, then select <strong>Install app</strong> or <strong>Add to Home screen</strong>.<br><span class="device">iPhone:</span> In Safari, tap <strong>Share ⬆</strong>, select <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</p>
     </section>
-    <div class="note">يحتاج البرنامج إلى الإنترنت وتسجيل الدخول بحساب Google المعتمد. لا يتم تثبيت ملفات العملاء محلياً بواسطة هذه الميزة.</div>
+    <div class="note">An internet connection and an authorized Google account are required. Installing the app does not store customer records on your phone.</div>
   </main>
   <script>
   (function () {
@@ -61,40 +61,40 @@
     const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     let deferred = null;
     if (installed) {
-      button.textContent = '✓ البرنامج مثبّت بالفعل';
+      button.textContent = '✓ Already Installed';
       button.disabled = true;
       help.hidden = true;
-      status.textContent = 'افتحه من الأيقونة الموجودة على الشاشة الرئيسية.';
+      status.textContent = 'Launch it using the icon on your home screen.';
     } else if (ios) {
-      helpText.innerHTML = 'على iPhone: افتح قائمة <b>المشاركة ⬆</b> في المتصفح، ثم اختر <b>Add to Home Screen</b> ثم <b>Add</b>. قد تحتاج إلى اختيار «فتح كتطبيق ويب» إن ظهر هذا الخيار.';
+      helpText.innerHTML = 'On iPhone: in Safari, tap <b>Share ⬆</b>, select <b>Add to Home Screen</b>, then tap <b>Add</b>. If available, enable <b>Open as Web App</b>.';
     } else if (android) {
-      helpText.innerHTML = 'على Android: اضغط زر التثبيت أعلاه؛ وإذا لم تظهر نافذة التثبيت، افتح قائمة <b>⋮</b> في Chrome ثم اختر <b>Install app</b> أو <b>Add to Home screen</b>.';
+      helpText.innerHTML = 'On Android: tap the install button above. If no installation prompt appears, open the <b>⋮</b> menu in Chrome and choose <b>Install app</b> or <b>Add to Home screen</b>.';
     }
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       deferred = e;
-      if (!installed) status.textContent = 'جاهز للتثبيت على جهازك.';
+      if (!installed) status.textContent = 'Ready to install on your device.';
     });
     window.addEventListener('appinstalled', () => {
       deferred = null;
       button.disabled = true;
-      button.textContent = '✓ تم تثبيت البرنامج';
+      button.textContent = '✓ App Installed';
       help.hidden = true;
-      status.textContent = 'يمكنك فتحه الآن من الشاشة الرئيسية.';
+      status.textContent = 'You can now launch it from your home screen.';
     });
     button.addEventListener('click', async () => {
       if (!deferred) {
         help.hidden = false;
         help.scrollIntoView({behavior:'smooth',block:'nearest'});
-        status.textContent = ios ? 'استخدم قائمة المشاركة في iPhone لإضافة البرنامج.' : 'اتبع الخطوات الموضحة أدناه في قائمة المتصفح.';
+        status.textContent = ios ? 'Use Share in Safari to add this app to your home screen.' : 'Follow the browser menu instructions shown below.';
         return;
       }
       const prompt = deferred;
       deferred = null;
       try { await prompt.prompt();
         const choice = await prompt.userChoice;
-        status.textContent = choice && choice.outcome === 'accepted' ? 'تم قبول التثبيت.' : 'يمكنك التثبيت لاحقاً من قائمة المتصفح.';
-      } catch (e) { status.textContent = 'يمكنك التثبيت من قائمة المتصفح.'; }
+        status.textContent = choice && choice.outcome === 'accepted' ? 'Installation accepted.' : 'You can install later from the browser menu.';
+      } catch (e) { status.textContent = 'You can install from the browser menu.'; }
     });
     if ('serviceWorker' in navigator && location.protocol === 'https:') {
       navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(() => {});
