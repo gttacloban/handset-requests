@@ -436,7 +436,6 @@ tbody tr:hover{background:#fbfcff}
 .updates-head h2{margin:0;font-size:18px;font-weight:800;color:#20365b}
 .updates-subtitle{margin:4px 0 0;color:#8291a9;font-size:12px;line-height:1.45}
 .updates-toolbar{display:flex;align-items:center;gap:9px}
-.updates-count{border-radius:50px;background:#f1f5fc;color:#657998;font-size:11px;font-weight:800;padding:6px 11px}
 .updates-add{background:#315ee2;color:white;border:0;border-radius:9px;min-height:39px;
   padding:9px 14px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .updates-add:hover{background:#244bc4}
@@ -459,7 +458,7 @@ tbody tr:hover{background:#fbfcff}
 .updates-action{background:#f4f7fc;color:#536b94;border:0;padding:6px 9px;min-height:32px;
   border-radius:8px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
 .updates-action.delete{background:#fff1f1;color:#bc3440}
-.updates-more[hidden],.updates-count[hidden]{display:none!important}
+.updates-more[hidden]{display:none!important}
 .updates-more{display:block;margin-top:9px;padding:7px 0;border:0;background:transparent;
   color:#2b59d7;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .updates-compose{border-top:1px solid #e9eef7;padding-top:15px;margin-top:15px}
@@ -581,7 +580,7 @@ tbody tr:hover{background:#fbfcff}
 :root:is([data-theme="dark"],[data-theme="globe"]) .color-choice{color:#e5edff}
 :root:is([data-theme="dark"],[data-theme="globe"]) .color-choice:hover,:root:is([data-theme="dark"],[data-theme="globe"]) .color-choice:focus-visible{background:#2a4060}
 :root:is([data-theme="dark"],[data-theme="globe"]) .updates-empty{background:#1c2c45;border-color:#3b506b;color:#b5c7e1}
-:root:is([data-theme="dark"],[data-theme="globe"]) .updates-count,:root:is([data-theme="dark"],[data-theme="globe"]) .updates-action{background:#25364f;color:#d5e3fc}
+:root:is([data-theme="dark"],[data-theme="globe"]) .updates-action{background:#25364f;color:#d5e3fc}
 :root:is([data-theme="dark"],[data-theme="globe"]) .updates-entry,:root:is([data-theme="dark"],[data-theme="globe"]) .updates-compose{border-color:#33445e}
 :root:is([data-theme="dark"],[data-theme="globe"]) .updates-date,:root:is([data-theme="dark"],[data-theme="globe"]) .updates-message,
 :root:is([data-theme="dark"],[data-theme="globe"]) .updates-compose label,:root:is([data-theme="dark"],[data-theme="globe"]) .updates-compose-hint{color:#b9c8e1}
@@ -1314,6 +1313,20 @@ a.nav-item:hover{color:#274ebd}
   }
 }
 
+/* Make the Updates message label stand out in every appearance mode. */
+.updates-compose label.message-all-sellers-label{
+  color:#c81e34;
+  font-size:18px;
+  font-weight:900;
+  line-height:1.45;
+  margin-bottom:9px;
+}
+:root:is([data-theme="dark"],[data-theme="globe"]) .updates-compose label.message-all-sellers-label{
+  color:#ff6579;
+}
+@media(max-width:700px){
+  .updates-compose label.message-all-sellers-label{font-size:17px}
+}
 </style>
 </head>
 <body>
@@ -1403,7 +1416,6 @@ a.nav-item:hover{color:#274ebd}
               <div><h2>Updates</h2><p class="updates-subtitle">Announcements, changes, and notifications for all sellers.</p></div>
             </div>
             <div class="updates-toolbar">
-              <span class="updates-count" id="updatesCount" hidden></span>
               <button class="updates-add" id="btnAddUpdate" type="button" onclick="openUpdateComposer()" style="display:none">+ Add Update</button>
             </div>
           </div>
@@ -1414,7 +1426,7 @@ a.nav-item:hover{color:#274ebd}
               <div><label for="u_update_title">Update title</label><input id="u_update_title" maxlength="120" placeholder="e.g. New stock allocation guidelines" required></div>
               <div><label for="u_update_type">Category</label><select id="u_update_type"><option>Announcement</option><option>Change</option><option>Notification</option></select></div>
             </div>
-            <div><label for="u_update_message">Message to all sellers</label>
+            <div><label class="message-all-sellers-label" for="u_update_message">Message to all sellers</label>
               <textarea id="u_update_message" maxlength="1200" rows="3" placeholder="Type the announcement, change, or notification here..." required></textarea>
               <div class="updates-compose-hint">Published updates appear for every signed-in Seller and Admin.</div>
             </div>
@@ -2842,8 +2854,6 @@ function refreshUpdates() {
 }
 function renderUpdates() {
   const list = Array.isArray(S.updates) ? S.updates : [];
-  $('updatesCount').hidden = !list.length;
-  $('updatesCount').textContent = list.length + (list.length === 1 ? ' update' : ' updates');
   const shown = S.updatesExpanded ? list : list.slice(0, 3);
   $('updatesList').innerHTML = shown.length ? shown.map(u => {
     const category = ['Announcement','Change','Notification'].includes(u.type) ? u.type : 'Announcement';
