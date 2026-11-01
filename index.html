@@ -1290,6 +1290,30 @@ a.nav-item:hover{color:#274ebd}
 .attachment-open-link{color:var(--accent);font-size:13px;font-weight:800;padding:9px;text-decoration:underline}
 @media(max-width:700px){.attachment-overlay{padding:8px}.attachment-dialog{max-height:calc(100dvh - 16px)}.attachment-dialog-content{max-height:calc(100dvh - 145px)}.attachment-dialog-content img{max-height:calc(100dvh - 178px)}}
 
+
+/* Desktop sidebar branding: keep the entire Globe wordmark below the browser edge. */
+@media (min-width: 701px) {
+  .sidebar {
+    padding-top: clamp(40px, 5vh, 56px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+  }
+  .sidebar .sidebar-brand {
+    flex-shrink: 0;
+    padding-top: 6px;
+  }
+  .sidebar .brand-mark {
+    height: 68px;
+    max-width: 192px;
+    flex-shrink: 0;
+  }
+  .sidebar .brand-mark img.logo {
+    object-fit: contain;
+    object-position: center;
+  }
+}
+
 </style>
 </head>
 <body>
