@@ -1327,6 +1327,22 @@ a.nav-item:hover{color:#274ebd}
 @media(max-width:700px){
   .updates-compose label.message-all-sellers-label{font-size:17px}
 }
+
+/* Style the PUBLISHED Updates message, not only the admin compose label. */
+#updatesList .updates-entry .updates-message {
+  color: #c62828;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+:root:is([data-theme="dark"],[data-theme="globe"]) #updatesList .updates-entry .updates-message {
+  color: #ff7081;
+}
+@media (max-width: 700px) {
+  #updatesList .updates-entry .updates-message {font-size: 17px;}
+}
 </style>
 </head>
 <body>
