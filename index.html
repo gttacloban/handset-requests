@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0b1f4d">
+<!-- Installable Globe handset tracker (PWA) -->
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Handset Requests">
+
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="preconnect" href="https://accounts.google.com">
@@ -1033,6 +1040,11 @@ html, body { width:100%; max-width:100%; overflow-x:clip; }
 :root[data-theme="dark"] #loginRetry,:root[data-theme="globe"] #loginRetry{
  background:#263951;color:#e6efff;border-color:#506781}
 
+/* Install-link matches the existing sidebar navigation buttons. */
+a.nav-item{text-decoration:none}
+a.nav-item:visited{color:inherit}
+a.nav-item:hover{color:#274ebd}
+:root[data-theme="dark"] a.nav-item:hover{color:#bcd0ff}
 </style>
 </head>
 <body>
@@ -1072,6 +1084,9 @@ html, body { width:100%; max-width:100%; overflow-x:clip; }
       <button class="nav-item" type="button" id="navUsers" onclick="openUsers();toggleSidebar(false)" style="display:none">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2c0-3 2.5-5 6-5s6 2 6 5v2M17 5a3 3 0 0 1 0 6M17 14c2.8 0 4 1.4 4 4v2"/></svg><span>Manage Users</span>
       </button>
+      <a class="nav-item" href="./install.html" title="Install on mobile home screen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 18h4M12 6v7m-3-3 3 3 3-3"/></svg><span>Install on Mobile</span>
+      </a>
     </nav>
     <div class="sidebar-bottom">
       <label class="appearance-label" for="themeSelect">APPEARANCE</label>
@@ -2524,6 +2539,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeColor
     }
   }, 12000);
 })();
+</script>
+<script>
+// PWA shell: network-only service worker. Never cache logins, requests, or API responses.
+window.addEventListener('load', function () {
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('./sw.js', {scope: './'}).catch(function () {});
+  }
+});
 </script>
 </body>
 </html>

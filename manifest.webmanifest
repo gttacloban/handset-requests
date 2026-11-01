@@ -1,0 +1,31 @@
+{
+  "id": "/handset-requests/",
+  "name": "Globe | Handset Pre-Order & Requests",
+  "short_name": "Handset Requests",
+  "description": "Globe handset pre-order and requests management for authorized staff.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1527",
+  "theme_color": "#0b1f4d",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
