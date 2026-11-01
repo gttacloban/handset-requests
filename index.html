@@ -1329,7 +1329,34 @@ a.nav-item:hover{color:#274ebd}
   }
 }
 
-/* Updates messages and admin message label use the original neutral styling. */
+/* Globe Updates typography: match the weight of the date badge.
+   Only the published announcement message changes its color by theme. */
+.updates-panel .updates-subtitle {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #26334b;
+}
+.updates-panel .updates-entry .updates-message {
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.65;
+  color: #101827;
+}
+:root[data-theme="dark"] .updates-panel .updates-entry .updates-message {
+  color: #ff7784;
+}
+:root[data-theme="globe"] .updates-panel .updates-entry .updates-message {
+  color: #ff7784;
+}
+:root:is([data-theme="dark"],[data-theme="globe"]) .updates-panel .updates-subtitle {
+  color: #d2dff1;
+}
+@media (max-width: 700px) {
+  .updates-panel .updates-subtitle { font-size: 13px; }
+  .updates-panel .updates-entry .updates-message { font-size: 16px; }
+}
+
 </style>
 </head>
 <body>
