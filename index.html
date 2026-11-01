@@ -1075,6 +1075,8 @@ a.nav-item:hover{color:#274ebd}
   body.mobile-app-ready #app > #requestsSection,
   body.mobile-app-ready #app > .requests-panel,
   body.mobile-app-ready #app > .dashboard-footer {display:none}
+  /* Updates are the first card on the mobile Home screen after sign-in. */
+  body.mobile-app-ready[data-mobile-view="dashboard"] #app > .updates-panel,
   body.mobile-app-ready[data-mobile-view="dashboard"] #app > .welcome-row,
   body.mobile-app-ready[data-mobile-view="dashboard"] #app > .rolebar,
   body.mobile-app-ready[data-mobile-view="dashboard"] #app > .kpis,
@@ -1570,6 +1572,14 @@ const statusLabel = s => s === 'Expired' ? 'Lapsed' : s;
 const sameStatus = (a, b) => statusLabel(a) === statusLabel(b);
 const isLapsed = s => s === 'Expired' || s === 'Lapsed';
 const TOKEN_KEY = 'hpo_id_token';
+// On personal phones, keep the existing short-lived Google ID token across app
+// restarts. Never store a password or an unlimited-lifetime login credential.
+const MOBILE_TOKEN_KEY = 'hpo_mobile_id_token_v1';
+function isMobileLoginDevice() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
+    window.matchMedia('(max-width:700px) and (pointer:coarse)').matches;
+}
+
 
 function statusKey(s) {
   return { 'Awaiting Unit': 'aw', 'Awaiting Handset': 'aw', 'For Release': 'fr', 'Fulfilled': 'fu', 'Cancelled': 'ca', 'Expired': 'ex', 'Lapsed': 'ex' }[s] || 'ot';
@@ -1596,12 +1606,24 @@ function decodeJwt(t) {
 
 function setToken(t) {
   const p = decodeJwt(t);
-  AUTH.token = t; AUTH.exp = p.exp * 1000; AUTH.profile = p;
+  // Client-side checks avoid restoring malformed or expired tokens. All actual
+  // authorization still happens in Google Apps Script on every API request.
+  if (!p || !Number.isFinite(Number(p.exp)) || Number(p.exp) * 1000 <= Date.now() + 60000 ||
+      p.aud !== CONFIG.CLIENT_ID || !['accounts.google.com', 'https://accounts.google.com'].includes(p.iss)) {
+    throw new Error('Invalid or expired Google session');
+  }
+  AUTH.token = t; AUTH.exp = Number(p.exp) * 1000; AUTH.profile = p;
   try { sessionStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+  if (isMobileLoginDevice()) {
+    // The ID token normally expires within about an hour and is not refreshed
+    // silently. After expiry, Google One Tap or the Sign In button is required.
+    try { localStorage.setItem(MOBILE_TOKEN_KEY, t); } catch (e) {}
+  }
 }
 function clearToken() {
-  AUTH.token = ''; AUTH.exp = 0;
+  AUTH.token = ''; AUTH.exp = 0; AUTH.profile = null;
   try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+  try { localStorage.removeItem(MOBILE_TOKEN_KEY); } catch (e) {}
 }
 function tokenValid() { return AUTH.token && AUTH.exp - Date.now() > 60 * 1000; }
 
@@ -2721,10 +2743,16 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeColor
     sdk.addEventListener('error', gisFailed, {once:true});
   }
 
+  // Prefer this tab's session; personal phones can also resume their last
+  // still-valid Google session after the browser/app process has been closed.
   let saved = '';
   try { saved = sessionStorage.getItem(TOKEN_KEY) || ''; } catch (e) {}
   if (saved) { try { setToken(saved); } catch (e) { clearToken(); } }
-  if (tokenValid()) loadApp(); // refresh returning users immediately
+  if (!tokenValid() && isMobileLoginDevice()) {
+    try { saved = localStorage.getItem(MOBILE_TOKEN_KEY) || ''; } catch (e) { saved = ''; }
+    if (saved) { try { setToken(saved); } catch (e) { clearToken(); } }
+  }
+  if (tokenValid()) loadApp(); // No extra Google button tap while the token remains valid.
 
   setTimeout(() => {
     if (!gisInitialized && !tokenValid() && $('loginScreen').classList.contains('open')) {
