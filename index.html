@@ -1202,6 +1202,29 @@ a.nav-item:hover{color:#274ebd}
   .mobile-bottom-nav{display:none!important}
 }
 
+
+/* Mobile alignment safeguard — fixes intermittent horizontal drift on Android,
+   including restoring a signed-in session or resuming a home-screen shortcut. */
+@media (max-width:700px) {
+  html {
+    max-width:100%;
+    overflow-x:hidden; /* fallback for older Samsung / Android WebViews */
+    overscroll-behavior-x:none;
+  }
+  body {width:100%;max-width:100%;overflow-x:clip;}
+  .app-shell {display:block;width:100%;min-width:0;max-width:100%;overflow-x:clip;}
+  .workspace, #dashboardSection, #app {
+    box-sizing:border-box;
+    width:100%;min-width:0;max-width:100%;
+    overflow-x:clip;
+  }
+  .kpis {width:100%;min-width:0;grid-template-columns:repeat(2,minmax(0,1fr));}
+  .kpi, .updates-panel, .welcome-row, .charts-grid, .insights-row,
+  .requests-panel {min-width:0;max-width:100%;}
+  .mobile-bottom-nav {width:100%;max-width:100%;}
+  .tblwrap {width:100%;max-width:100%;overflow-x:auto;}
+}
+
 </style>
 </head>
 <body>
@@ -1595,6 +1618,31 @@ function firstStatus() { return S.statuses[0] || 'Awaiting Unit'; }
    They do not depend on Drive, API responses, or browser cache. */
 function showLogo(_legacyLogo) { /* Keep old initialization compatible; use embedded Globe assets. */ }
 
+
+/* Keep the document aligned to the left after session restore.  Browsers can
+   restore an old horizontal scroll offset even if the page now fits the phone. */
+let mobileAlignFrame = 0;
+function alignMobileViewport() {
+  if (!window.matchMedia('(max-width:700px)').matches) return;
+  if (mobileAlignFrame) window.cancelAnimationFrame(mobileAlignFrame);
+  mobileAlignFrame = window.requestAnimationFrame(() => {
+    mobileAlignFrame = 0;
+    const y = window.scrollY;
+    if (window.scrollX > 0) window.scrollTo(0, y);
+    const scrolling = document.scrollingElement;
+    if (scrolling && scrolling.scrollLeft) scrolling.scrollLeft = 0;
+    if (document.body.scrollLeft) document.body.scrollLeft = 0;
+    const workspace = document.querySelector('.workspace');
+    if (workspace && workspace.scrollLeft) workspace.scrollLeft = 0;
+  });
+}
+window.addEventListener('pageshow', alignMobileViewport, {passive:true});
+window.addEventListener('resize', alignMobileViewport, {passive:true});
+window.addEventListener('orientationchange', alignMobileViewport, {passive:true});
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', alignMobileViewport, {passive:true});
+}
+
 /* ================= Google Sign-In ================= */
 const AUTH = { token: '', exp: 0, profile: null, waiting: [] };
 
@@ -1898,6 +1946,7 @@ function init(d) {
   document.body.classList.add('mobile-app-ready');
   if (!document.body.dataset.mobileView) document.body.dataset.mobileView = 'dashboard';
   render();
+  alignMobileViewport();
   // Always refresh from the server, even when cached data was displayed.
   if (S.fresh) refreshUpdates();
 }
@@ -2030,7 +2079,8 @@ function navigateTo(area) {
     const title=document.querySelector('.topbar h1');
     if (title) title.textContent=names[section];
     toggleSidebar(false);
-    window.scrollTo({top:0,behavior:'instant'});
+    window.scrollTo({left:0,top:0,behavior:'instant'});
+    alignMobileViewport();
     return;
   }
   const title=document.querySelector('.topbar h1');
@@ -2290,7 +2340,10 @@ function goToPage(page) {
   renderTable();
   // After navigating from the bottom, bring the newly visible requests into view.
   const start = $('requestsSection');
-  if (start) start.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (start) {
+    start.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+    alignMobileViewport();
+  }
 }
 function updateDateRangeUI() {
   const f = S.filter;
