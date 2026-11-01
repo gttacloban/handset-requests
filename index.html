@@ -1225,6 +1225,35 @@ a.nav-item:hover{color:#274ebd}
   .tblwrap {width:100%;max-width:100%;overflow-x:auto;}
 }
 
+
+/* Show the signed-in user's actual display name beside the Globe avatar on mobile.
+   Keep the account chip compact; narrow screens prioritize the username. */
+@media (max-width:700px) {
+  header.topbar .hright { min-width:0; max-width:calc(100% - 54px); }
+  header.topbar .who {
+    width:auto; height:43px; min-width:0; min-height:43px;
+    max-width:min(195px,48vw); flex:0 1 auto;
+    border-radius:12px !important;
+    padding:3px 9px 3px 3px !important;
+    gap:7px; justify-content:flex-start; overflow:hidden;
+  }
+  header.topbar .who .txt {
+    display:block; min-width:0; max-width:100%; flex:1 1 auto;
+  }
+  header.topbar .who .nm {
+    display:block; min-width:0; max-width:100%;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size:12px; font-weight:800; color:inherit;
+  }
+  header.topbar .who .rl { display:none; }
+  header.topbar .who .avatar { width:35px; height:35px; flex:0 0 35px; }
+}
+@media (max-width:430px) {
+  /* Bottom navigation already identifies the current view on small phones. */
+  .topbar-head h1 { display:none; }
+  .topbar-left { flex:0 0 auto; }
+  header.topbar .who { max-width:min(205px,calc(100vw - 130px)); }
+}
 </style>
 </head>
 <body>
