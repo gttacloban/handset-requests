@@ -1267,7 +1267,6 @@ a.nav-item:hover{color:#274ebd}
 /* Inventory selector (mobile and desktop; theme-aware). */
 .inventory-box{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card);min-width:0}
 .inventory-box select{width:100%;min-width:0;max-width:100%;font-size:15px;margin-top:8px}
-.inventory-box #f_stock_search{width:100%;min-width:0;max-width:100%;font-size:15px;margin-bottom:8px}
 .inventory-box #f_handset_choice{margin-top:0;font-size:15px}
 .inventory-box #manualHandsetWrap{margin-top:10px}
 .inventory-box #manualHandsetWrap[hidden]{display:none}
@@ -1275,6 +1274,7 @@ a.nav-item:hover{color:#274ebd}
 .inventory-box .stock-balance strong{font-weight:800;color:var(--ink)}
 .inventory-box .stock-item-code{opacity:.7}
 .stock-balance{margin-top:9px;padding:9px 11px;background:var(--bg);color:var(--muted);border-radius:8px;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.stock-balance[hidden]{display:none!important}
 .stock-balance.stock-good{border-left:3px solid #16a34a}
 .stock-balance.stock-low{border-left:3px solid #f59e0b}
 @media(max-width:700px){.inventory-box{padding:10px}.inventory-box select{font-size:16px}}
@@ -1286,9 +1286,6 @@ a.nav-item:hover{color:#274ebd}
   background:var(--bg);color:var(--ink);border:1px solid var(--line);cursor:default}
 .inventory-box .stock-count-input.stock-good{border-color:#16a34a}
 .inventory-box .stock-count-input.stock-low{border-color:#e9a642}
-.inventory-box .stock-manual-toggle{background:transparent;border:0;padding:8px 0 0;font:inherit;
-  font-size:12px;font-weight:700;color:var(--accent);cursor:pointer;text-align:left}
-.inventory-box .stock-manual-toggle:hover{text-decoration:underline}
 @media(max-width:450px){.handset-stock-row{grid-template-columns:minmax(0,1.35fr) minmax(105px,.75fr);gap:8px}}
 @media(max-width:350px){.handset-stock-row{grid-template-columns:minmax(0,1fr) 95px;gap:6px}
  .handset-stock-count label{font-size:11px}}
@@ -1532,11 +1529,8 @@ a.nav-item:hover{color:#274ebd}
         <div class="handset-stock-row">
           <div class="handset-selector">
             <label for="f_handset_choice">Handset Description <span class="req">*</span></label>
-            <input id="f_stock_search" type="search" autocomplete="off" placeholder="Search handset description…"
-                   oninput="renderStockPicker()" aria-label="Search handset descriptions">
             <select id="f_handset_choice" onchange="chooseStockItem()" required aria-label="Handset Description">
               <option value="__select__" selected disabled>Select handset…</option>
-              <option value="__manual__" hidden>Other / Pre-order</option>
             </select>
           </div>
           <div class="handset-stock-count">
@@ -1548,12 +1542,11 @@ a.nav-item:hover{color:#274ebd}
         </div>
         <input id="f_stock" type="hidden" value="">
         <input id="f_handset" type="hidden" value="">
-        <button class="stock-manual-toggle" type="button" id="f_manual_toggle" onclick="toggleManualHandset()">Other / Pre-order (not in stock)</button>
         <div id="manualHandsetWrap" hidden>
           <label for="f_handset_manual">Enter handset description</label>
           <input id="f_handset_manual" autocomplete="off" placeholder="e.g. iPhone 17 Pro Max 256GB">
         </div>
-        <div id="stockBalance" class="stock-balance" role="status" aria-live="polite">Select a handset to see available stock.</div>
+        <div id="stockBalance" class="stock-balance" role="status" aria-live="polite" hidden></div>
       </div>
       <div>
         <div class="color-label-row">
@@ -2527,13 +2520,13 @@ function renderStockPicker(overrideCode) {
   const sel = $('f_handset_choice');
   const previous = overrideCode !== undefined ? String(overrideCode || '__manual__') : (sel.value || '__select__');
   const inventory = Array.isArray(S.inventory) ? S.inventory : [];
-  const query = String($('f_stock_search').value || '').trim().toLowerCase();
   const editing = S.rows.find(x => x.id === $('f_id').value);
-  const items = inventory.filter(x => !query || x.description.toLowerCase().includes(query) || x.code.toLowerCase().includes(query))
-    .sort((a,b) => a.description.localeCompare(b.description));
-  // Show descriptions only: stock quantity and item code stay out of the options.
+  const items = inventory.slice().sort((a,b) => a.description.localeCompare(b.description));
+  // Only stocked handset descriptions are offered for new requests.
+  // Keep the legacy manual selection ONLY when editing an existing unlisted request.
+  const legacyManual = previous === '__manual__' && !!editing;
   sel.innerHTML = '<option value="__select__" disabled>Select handset…</option>' +
-    '<option value="__manual__" hidden>Other / Pre-order</option>' +
+    (legacyManual ? '<option value="__manual__">Existing unlisted handset</option>' : '') +
     items.map(item => `<option value="${esc(item.code)}">${esc(item.description)}</option>`).join('');
   if (previous !== '__select__' && previous !== '__manual__' && !Array.from(sel.options).some(o=>o.value===previous)) {
     const item = inventory.find(x => x.code === previous);
@@ -2544,24 +2537,11 @@ function renderStockPicker(overrideCode) {
   if (!sel.value) sel.value = '__select__';
   showStockSelection();
 }
-function toggleManualHandset() {
-  const sel = $('f_handset_choice');
-  if (sel.value === '__manual__') {
-    $('f_stock_search').value = '';
-    renderStockPicker('__select__');
-  } else {
-    $('f_stock_search').value = '';
-    renderStockPicker('__manual__');
-    $('f_handset_manual').focus();
-  }
-  chooseStockItem();
-}
 function showStockSelection() {
   const selected = $('f_handset_choice').value;
   const manual = selected === '__manual__';
   $('manualHandsetWrap').hidden = !manual;
   $('f_handset_manual').required = manual;
-  $('f_manual_toggle').textContent = manual ? 'Choose from stock instead' : 'Other / Pre-order (not in stock)';
   $('f_stock').value = (selected !== '__manual__' && selected !== '__select__') ? selected : '';
   updateStockBalance();
 }
@@ -2576,11 +2556,11 @@ function updateStockBalance() {
   count.classList.remove('stock-low', 'stock-good');
   if (!code) {
     box.className = 'stock-balance';
-    box.textContent = manual
-      ? 'Pre-order / request only. No inventory will be deducted.'
-      : 'Select a handset to see available stock.';
+    box.hidden = true;
+    box.textContent = '';
     return;
   }
+  box.hidden = false;
   const item = (S.inventory || []).find(x => x.code === code);
   if (!item) {
     box.className = 'stock-balance stock-low';
@@ -2595,9 +2575,11 @@ function updateStockBalance() {
   const enough = available + own >= qty;
   count.classList.add(enough && S.stockVerified ? 'stock-good' : 'stock-low');
   box.className = 'stock-balance' + (enough && S.stockVerified ? ' stock-good' : ' stock-low');
+  // The adjacent Available Stock field already shows the quantity.
+  // Only display actionable warnings; omit the redundant deduction notice.
+  box.hidden = enough && S.stockVerified;
   box.textContent = !S.stockVerified ? 'Checking live stock…' :
-    (enough ? `Saving this request will deduct ${qty} unit${qty === 1 ? '' : 's'}.` :
-      `Not enough stock for ${qty} unit${qty === 1 ? '' : 's'}.`);
+    (enough ? '' : `Not enough stock for ${qty} unit${qty === 1 ? '' : 's'}.`);
 }
 function chooseStockItem() {
   const choice = $('f_handset_choice').value;
@@ -2631,7 +2613,8 @@ function refreshInventoryForForm() {
     $('f_stock_available').classList.remove('stock-good');
     $('f_stock_available').classList.add('stock-low');
     $('stockBalance').className = 'stock-balance stock-low';
-    $('stockBalance').textContent = 'Unable to verify live stock (' + (err.message || 'connection issue') + '). You can still save a request without a stock item.';
+    $('stockBalance').hidden = false;
+    $('stockBalance').textContent = 'Unable to verify live stock (' + (err.message || 'connection issue') + '). Please try again.';
   });
 }
 $('f_qty').addEventListener('input', updateStockBalance);
@@ -2662,7 +2645,6 @@ function openForm(id) {
   $('f_qty').value = r ? r.qty : 1;
   $('f_type').value = r ? r.type : '';
   $('f_request_category').value = r ? (r.requestCategory || '') : '';
-  $('f_stock_search').value = '';
   const selectedStockCode = r ? (r.stockItemCode || '') : '';
   $('f_seller').value = r ? r.seller : S.user.name;
   $('f_wl').value = r ? r.waitlist : '';
