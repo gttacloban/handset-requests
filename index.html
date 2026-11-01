@@ -1658,13 +1658,17 @@ function setTheme(mode) {
   if (picker) picker.value = chosen;
   const btn = $('themeToggle');
   if (btn) {
+    // Keep the header button and sidebar selector showing the SAME active mode.
+    // Clicking the header button still cycles through all three modes.
+    const modeNames = {default:'Default Mode',dark:'Dark Mode',globe:'Digital Globe Mode'};
+    const modeIcons = {default:'☀',dark:'☾',globe:'🌐'};
     const next = chosen === 'default' ? 'dark' : chosen === 'dark' ? 'globe' : 'default';
-    const nextLabel = {default:'Default Mode',dark:'Dark Mode',globe:'Digital Globe Mode'}[next];
-    btn.setAttribute('aria-label', 'Switch to ' + nextLabel);
-    btn.setAttribute('title', 'Switch to ' + nextLabel);
+    btn.setAttribute('aria-label', 'Current: ' + modeNames[chosen] + '. Switch to ' + modeNames[next]);
+    btn.setAttribute('title', 'Current: ' + modeNames[chosen] + ' — Click to switch to ' + modeNames[next]);
     btn.setAttribute('aria-pressed', String(chosen !== 'default'));
-    btn.querySelector('.theme-icon').textContent = next === 'dark' ? '☾' : next === 'globe' ? '🌐' : '☀';
-    btn.querySelector('.theme-text').textContent = nextLabel;
+    btn.setAttribute('data-active-mode', chosen);
+    btn.querySelector('.theme-icon').textContent = modeIcons[chosen];
+    btn.querySelector('.theme-text').textContent = modeNames[chosen];
   }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', chosen === 'default' ? '#0b1f4d' : chosen === 'dark' ? '#101b2f' : '#07162c');
@@ -1866,6 +1870,8 @@ function onCredential(resp) {
   const em = String(AUTH.profile.email || '').toLowerCase();
   if (S.loaded && S.user && S.user.email !== em) {
     // Never display the previous user's cached dashboard to a different account.
+    ++attachmentPrefetchGeneration_;
+    clearTimeout(attachmentPrefetchTimer_);
     attachmentMemoryCache_.clear();
     S.loaded = false; S.fresh = false; S.rows = []; S.updates = []; S.updatesReady = false;
     $('app').style.display = 'none'; $('loading').style.display = '';
@@ -1907,6 +1913,8 @@ function retryLogin() {
 function logout(silent) {
   try { if (gisInitialized) google.accounts.id.disableAutoSelect(); } catch (e) {}
   clearToken();
+  ++attachmentPrefetchGeneration_;
+  clearTimeout(attachmentPrefetchTimer_);
   attachmentMemoryCache_.clear();
   try { localStorage.removeItem(CACHE_KEY()); localStorage.removeItem('hpo_cache_' + ((S.user && S.user.email) || '')); localStorage.removeItem('hpo_last'); } catch (e) {}
   location.reload();
@@ -2062,6 +2070,10 @@ function init(d) {
   if (!document.body.dataset.mobileView) document.body.dataset.mobileView = 'dashboard';
   render();
   alignMobileViewport();
+  // Start image preloading as soon as a valid signed-in session has Updates metadata,
+  // including when the dashboard opens instantly from locally cached *metadata*.
+  // Only the attachment bytes are fetched from the authenticated server.
+  if (Array.isArray(S.updates) && S.updates.length) scheduleAttachmentPreviews_();
   // Always refresh from the server, even when cached data was displayed.
   if (S.fresh) refreshUpdates();
 }
@@ -2944,11 +2956,14 @@ function removeUpdate(id) {
 $('u_update_attachment').addEventListener('change', () => {
   if ($('u_update_attachment').files.length) $('u_attachment_remove').checked = false;
 });
-// FAST PRIVATE PREVIEW: two latest images are fetched opportunistically after Updates load.
-// Keep only in RAM for this signed-in page session. Never save sensitive files in localStorage.
+// PRIVATE BACKGROUND IMAGE PRELOAD
+// Begin as soon as the signed-in dashboard knows which images are in Updates.
+// Keep previews only in memory (not localStorage / Cache Storage) to protect team files.
 const attachmentMemoryCache_ = new Map();
-const ATTACHMENT_CACHE_LIMIT = 3;
+const ATTACHMENT_CACHE_LIMIT = 6;
+const ATTACHMENT_PRELOAD_LIMIT = 6;
 let attachmentPrefetchTimer_ = 0;
+let attachmentPrefetchGeneration_ = 0;
 let updateAttachmentObjectUrl = '';
 let updateAttachmentLoadId = 0;
 function attachmentKey_(u) {
@@ -2966,24 +2981,29 @@ function attachmentCachePrune_() {
   }
 }
 function scheduleAttachmentPreviews_() {
-  if (attachmentPrefetchTimer_) clearTimeout(attachmentPrefetchTimer_);
-  if (!S.loaded || !S.fresh || document.hidden || !tokenValid()) return;
-  attachmentPrefetchTimer_ = setTimeout(() => {
+  clearTimeout(attachmentPrefetchTimer_);
+  // Invalidate a previous queue when a new update list arrives.
+  const generation = ++attachmentPrefetchGeneration_;
+  if (!S.loaded || !tokenValid() || document.hidden) return;
+  attachmentCachePrune_();
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  // Respect explicit Data Saver (uploads/attachments can be several MB).
+  if (connection && connection.saveData) return;
+  const images = (S.updates || []).filter(u => u.hasAttachment &&
+    ['image/jpeg','image/png','image/webp'].includes(u.attachmentType))
+    .slice(0, ATTACHMENT_PRELOAD_LIMIT);
+  if (!images.length) return;
+  // A short idle delay lets the UI render first; do not wait for other dashboard
+  // network requests. The first image is requested immediately after this delay.
+  attachmentPrefetchTimer_ = setTimeout(async () => {
     attachmentPrefetchTimer_ = 0;
-    if (document.hidden || !S.loaded || !tokenValid() || S.fetching) return;
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    if (connection && (connection.saveData || /^(slow-2g|2g)$/.test(connection.effectiveType || ''))) return;
-    attachmentCachePrune_();
-    // Preload only two most recent images, sequentially, so mobile login stays responsive.
-    const candidates = (S.updates || []).filter(u => u.hasAttachment &&
-      ['image/jpeg','image/png','image/webp'].includes(u.attachmentType)).slice(0,2);
-    (async () => {
-      for (const u of candidates) {
-        if (document.hidden || !tokenValid()) break;
-        try { await getPrivateAttachment_(u); } catch (e) { /* Clicking View will show an actionable error. */ }
-      }
-    })();
-  }, 1200);
+    for (const u of images) {
+      if (generation !== attachmentPrefetchGeneration_ || document.hidden || !tokenValid()) break;
+      if (!(S.updates || []).some(x => attachmentKey_(x) === attachmentKey_(u))) continue;
+      try { await getPrivateAttachment_(u); }
+      catch (e) { /* The View Image button retains its normal error display. */ }
+    }
+  }, 80);
 }
 function getPrivateAttachment_(u) {
   const key = attachmentKey_(u);
@@ -3063,7 +3083,12 @@ $('updatesList').addEventListener('click', e => {
 // Newly published notices become visible when staff return to the tab,
 // and every 60 seconds while the tab remains active.
 window.addEventListener('focus', refreshUpdates);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshUpdates(); });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    if (S.loaded && tokenValid()) scheduleAttachmentPreviews_();
+    refreshUpdates();
+  }
+});
 setInterval(() => { if (!document.hidden) refreshUpdates(); }, 60000);
 
 /* ================= Toast ================= */
