@@ -1395,6 +1395,20 @@ a.nav-item:hover{color:#274ebd}
 @media (max-width: 700px) {
   .updates-panel .updates-category.notification { font-size: 16px; }
 }
+
+/* Unified Available Units: one stock + unassigned-expired pool. */
+.available-panel-head-actions{display:flex;align-items:center;gap:8px}
+.available-panel-head-actions .mini{font-size:11px;padding:7px 10px;white-space:nowrap}
+.available-units-list{max-height:330px;overflow-y:auto;scrollbar-width:thin}
+.available-units-list li{gap:8px}
+.available-units-list .available-desc{display:block;color:var(--ink);font-weight:650;font-size:13px}
+.available-units-list .available-sub{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.available-units-list .u{flex-shrink:0;white-space:nowrap}
+.spare-explain{font-size:12px;color:var(--muted);margin:7px 0 0}
+.spare-form .fgrid{grid-template-columns:1fr}
+.spare-form .spare-new-fields[hidden]{display:none}
+:root:is([data-theme="dark"],[data-theme="globe"]) .available-units-list .available-desc{color:var(--ink)}
+@media(max-width:700px){.available-panel-head-actions{flex-wrap:wrap;justify-content:flex-end}}
 </style>
 </head>
 <body>
@@ -1533,9 +1547,14 @@ a.nav-item:hover{color:#274ebd}
         <div class="section-heading" id="stockSection"><div><div class="eyebrow">STOCK &amp; DEMAND</div><h2>Stock Insights</h2></div></div>
         <div class="insights-row">
           <section class="panel insight-panel">
-            <div class="panel-heading"><h3>Available Units</h3><span class="section-icon">◈</span></div>
-            <ul class="top" id="avail"></ul>
-            <div class="note">Hold Expired—now available for the next customer</div>
+            <div class="panel-heading"><h3>Available Units</h3>
+              <div class="available-panel-head-actions">
+                <button type="button" class="btn btn-primary mini admin-col" id="btnAddSpare" style="display:none" onclick="openSpareModal()">+ Add Spare Units</button>
+                <span class="section-icon">◈</span>
+              </div>
+            </div>
+            <ul class="top available-units-list" id="avail" aria-live="polite"></ul>
+            <div class="note">Spare handsets + Hold Expired units that remain unassigned. Counted once.</div>
           </section>
           <section class="panel insight-panel">
             <div class="panel-heading"><h3>Most Requested Handsets</h3><span class="section-icon">↗</span></div>
@@ -1697,6 +1716,25 @@ a.nav-item:hover{color:#274ebd}
   </form>
 </div>
 
+<!-- Admin only: physical spare units entered directly into Inventory (not Requests). -->
+<div class="modal" id="spareModal" onclick="if(event.target===this)closeSpareModal()">
+  <form class="box spare-form" id="spareForm" onsubmit="submitSpareUnits(event)">
+    <h2>Add Spare Units</h2>
+    <p class="spare-explain">Add extra physical handsets to Available Units without creating a seller request.</p>
+    <div class="fgrid">
+      <div><label for="spareCode">Handset</label>
+        <select id="spareCode" onchange="updateSpareForm()" required><option value="__new__">+ New handset description</option></select></div>
+      <div class="spare-new-fields" id="spareNewFields"><label for="spareDescription">Handset Description <span class="req">*</span></label>
+        <input id="spareDescription" maxlength="160" placeholder="e.g. iPhone 18 Pro Max 256GB Black"></div>
+      <div><label for="spareQty">Quantity to Add <span class="req">*</span></label>
+        <input id="spareQty" type="number" min="1" max="100000" step="1" value="1" required></div>
+    </div>
+    <p class="spare-explain" id="spareFeedback" role="status" aria-live="polite"></p>
+    <div class="actions"><button type="button" class="btn btn-light" id="spareCancel" onclick="closeSpareModal()">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="spareSave">Add Units</button></div>
+  </form>
+</div>
+
 <!-- Users (admin only) -->
 <div class="modal" id="usersModal" onclick="if(event.target===this)closeUsers()">
   <div class="box">
@@ -1752,7 +1790,7 @@ const CONFIG = {
 };
 /* ========================================== */
 
-const S = { rows: [], sellers: [], types: [], statuses: [], user: null, admin: false, loaded: false,
+const S = { rows: [], sellers: [], types: [], statuses: [], inventory: [], availableUnits: null, user: null, admin: false, loaded: false,
   page: 1, pageSize: 5, saving: false, saveClientId: '', editVersion: 0,
   filter: { q: '', status: '', seller: '', type: '', category: '', dateFrom: '', dateTo: '' }, hiddenColors: [], colorSyncReady: false, colorWritePending: false, colorRefreshPending: false, updates: [], updatesReady: false, updatesPending: false, updatesRefreshing: false, updatesExpanded: false, updateEditingId: '' };
 const $ = id => document.getElementById(id);
@@ -2078,7 +2116,7 @@ const CACHE_KEY = () => 'hpo_cache_' + String((AUTH.profile && AUTH.profile.emai
 function saveCache() {
   if (!S.loaded || !S.user) return;
   try {
-    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates }));
+    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates, inventory: S.inventory, availableUnits: S.availableUnits }));
     localStorage.setItem('hpo_last', S.user.email);
   } catch (e) {}
 }
@@ -2159,6 +2197,7 @@ function init(d) {
   $('btnUsers').style.display = S.admin ? '' : 'none';
   $('navUsers').style.display = S.admin ? '' : 'none';
 
+  $('btnAddSpare').style.display = S.admin ? '' : 'none';
   $('btnAddUpdate').style.display = S.admin ? '' : 'none';
   $('btnAddUpdate').disabled = !S.updatesReady;
   $('btnAddUpdate').title = S.updatesReady ? 'Publish for all sellers' : 'Updates backend not connected';
@@ -2216,7 +2255,8 @@ function renderKpis() {
   // Older records without a saved category do not belong to either category.
   const standard = S.rows.filter(r => r.requestCategory === 'Standard Request');
   const latest = S.rows.filter(r => r.requestCategory === 'Latest Request');
-  const available = S.rows.filter(r => isLapsed(r.status) && !r.reassignedTo);
+  const availableCount = S.availableUnits && Number.isFinite(Number(S.availableUnits.totalUnits))
+    ? Number(S.availableUnits.totalUnits) : 0;
   const cards = [
     { label: 'Total Standard Requests', value: standard.length, subtitle: summarizeUnits(standard) + ' handset units', colors: ['#537af0','#2d50ca'], icon:'▤' },
     { label: 'Total Latest Requests', value: latest.length, subtitle: summarizeUnits(latest) + ' handset units', colors: ['#18b4ad','#087e9e'], icon:'◎' },
@@ -2226,7 +2266,7 @@ function renderKpis() {
         colors:DASH_STATUS_STYLES[status] ? DASH_STATUS_STYLES[status].slice(0,2) : ['#7c91ac','#526b92'],
         icon:DASH_STATUS_STYLES[status] ? DASH_STATUS_STYLES[status][2] : '▣',key:status };
     }),
-    { label: 'Available Units', value: summarizeUnits(available), subtitle:'Hold expired, unassigned', colors:['#32a9e8','#1879bf'],icon:'↺' }
+    { label: 'Available Units', value: availableCount, subtitle:'Spare + expired, unassigned', colors:['#32a9e8','#1879bf'],icon:'↺' }
   ];
   $('kpis').innerHTML = cards.map(k => {
     const actionable = Object.prototype.hasOwnProperty.call(k,'key');
@@ -2745,6 +2785,7 @@ function submitForm(e) {
       setRequestSaving(false, '');
       closeForm();
       render();
+      refreshAvailableUnits();
       // Confirmation is already shown during the save flow; avoid a duplicate popup.
     })
     .catch(err => {
@@ -2765,7 +2806,10 @@ function changeStatus(id, status) {
   if (status === 'For Release' && old !== 'For Release') { r.holdUntil = Date.now() + HOLD_MAX * 3600000; r.releasedAt = 0; }
   render();
   api('status', { id: id, status: status })
-    .then(res => { if (res && 'holdUntil' in res) { r.holdUntil = res.holdUntil; render(); } toast(id + ' → ' + statusLabel(status) + (status === 'For Release' && old !== 'For Release' ? ` (${HOLD_MAX}h hold started)` : '')); })
+    .then(res => {
+      if (res && res.row) { Object.assign(r, res.row); if (res.usedFrom) { const oldUnit = S.rows.find(x => x.id === res.usedFrom); if (oldUnit) oldUnit.reassignedTo = id; } }
+      if (res && 'holdUntil' in res) r.holdUntil = res.holdUntil;
+      render(); refreshAvailableUnits(); toast(id + ' → ' + statusLabel(status) + (status === 'For Release' && old !== 'For Release' ? ` (${HOLD_MAX}h hold started)` : '')); })
     .catch(err => { r.status = old; r.holdUntil = oldHold; render(); toast(err.message, true); });
 }
 
@@ -2777,7 +2821,7 @@ function removeRow(id) {
   S.rows.splice(i, 1);
   render();
   api('delete', { id: id })
-    .then(() => { /* Deleted successfully; table already updated. */ })
+    .then(() => { refreshAvailableUnits(); /* Deleted successfully; table already updated. */ })
     .catch(err => { S.rows.splice(i, 0, r); render(); toast(err.message, true); });
 }
 
@@ -2814,27 +2858,97 @@ function holdRequest(id) {
       if (i > -1) S.rows[i] = res.row;
       if (res.usedFrom) { const u = S.rows.find(x => x.id === res.usedFrom); if (u) u.reassignedTo = id; }
       render();
+      refreshAvailableUnits();
       toast(`${id} on hold for ${hours}h`);
     })
     .catch(err => { Object.assign(r, backup); render(); toast(err.message, true); });
 }
+/* Available Units comes from the central Inventory + deduplicated legacy lapsed holds.
+   Never sum Inventory available and stock-backed expired requests again. */
 function renderAvail() {
-  const map = {};
-  S.rows.filter(r => isLapsed(r.status) && !r.reassignedTo).forEach(r => {
-    const k = norm(r.handset) + '|' + norm(r.color);
-    if (!map[k]) map[k] = { handset: r.handset, color: r.color, units: 0 };
-    map[k].units += Number(r.qty) || 1;
-  });
-  const list = Object.entries(map).map(([k, x]) => {
-    const next = S.rows.filter(r => r.status === 'Awaiting Unit' && norm(r.handset) + '|' + norm(r.color) === k)
-      .sort((a, b) => (parseInt(a.waitlist, 10) || 1e9) - (parseInt(b.waitlist, 10) || 1e9) || a.date.localeCompare(b.date))[0];
-    return { ...x, next };
-  });
-  $('avail').innerHTML = list.length ? list.map(x => `
-    <li><span>${esc(x.handset)}<span style="display:block;color:var(--muted);font-size:12px">${esc(x.color)}${x.next ? ` • Next: ${esc(x.next.id)} · ${esc(x.next.seller)} · WL #${esc(x.next.waitlist)}` : ''}</span></span>
-    <span style="display:flex;align-items:center;gap:8px"><span class="u">${x.units}</span>${S.admin && x.next ? `<button class="btn btn-primary mini" onclick="holdRequest('${esc(x.next.id)}')">Assign</button>` : ''}</span></li>`).join('')
-    : '<li style="color:var(--muted)">No released units</li>';
+  const data = S.availableUnits;
+  const list = (data && Array.isArray(data.items)) ? data.items : [];
+  $('avail').innerHTML = list.length ? list.map(x => {
+    const k = norm(x.handset);
+    const next = S.rows.filter(r => r.status === 'Awaiting Unit' &&
+      (norm(r.handset) === k || (x.color && norm(r.handset) === k && norm(r.color) === norm(x.color))))
+      .sort((a,b) => (parseInt(a.waitlist,10)||1e9)-(parseInt(b.waitlist,10)||1e9))[0];
+    const code = x.codes && x.codes.length ? 'Item ID: '+x.codes.join(', ') : 'Hold Expired';
+    return `<li><span><span class="available-desc">${esc(x.handset)}</span>
+       <span class="available-sub">${esc(x.color || code)}${x.color ? ' · '+esc(code):''}${next ? ' · Next: '+esc(next.id) : ''}</span></span>
+       <span style="display:flex;align-items:center;gap:8px"><span class="u">${formatCount(x.units)}</span>
+       ${S.admin && next ? `<button class="btn btn-primary mini" onclick="holdRequest('${esc(next.id)}')">Assign</button>` : ''}</span></li>`;
+  }).join('') : '<li style="color:var(--muted)">No available units</li>';
 }
+
+let availabilitySyncInFlight = false;
+function refreshAvailableUnits() {
+  if (!S.loaded || !tokenValid() || availabilitySyncInFlight) return;
+  availabilitySyncInFlight = true;
+  api('getAvailableUnits').then(res => {
+    if (!res || !res.availableUnits) return;
+    S.availableUnits = res.availableUnits;
+    S.inventory = res.inventory || [];
+    renderKpis(); renderAvail(); saveCache();
+  }).catch(err => console.warn('Available stock refresh failed:', err.message))
+    .finally(() => { availabilitySyncInFlight = false; });
+}
+// Admin's spare stock intake; entered once into Inventory, never a seller request.
+function updateSpareForm() {
+  const newItem = $('spareCode').value === '__new__';
+  $('spareNewFields').hidden = !newItem;
+  $('spareDescription').required = newItem;
+}
+function openSpareModal() {
+  if (!S.admin) return;
+  const items = (S.inventory || []).slice().sort((a,b) => String(a.description).localeCompare(String(b.description)));
+  $('spareCode').innerHTML = '<option value="__new__">+ New handset description</option>' +
+    items.map(x => `<option value="${esc(x.code)}">${esc(x.description)} (${formatCount(x.available)} available)</option>`).join('');
+  $('spareCode').value = '__new__';
+  $('spareDescription').value = '';
+  $('spareQty').value = 1;
+  $('spareFeedback').textContent = '';
+  updateSpareForm();
+  $('spareModal').classList.add('open');
+  document.body.classList.add('noscroll');
+}
+function closeSpareModal() {
+  if ($('spareSave').disabled) return;
+  $('spareModal').classList.remove('open');
+  document.body.classList.remove('noscroll');
+}
+function submitSpareUnits(e) {
+  e.preventDefault();
+  if (!S.admin || $('spareSave').disabled) return;
+  const code = $('spareCode').value === '__new__' ? '' : $('spareCode').value;
+  const description = $('spareDescription').value.trim();
+  const qty = Number($('spareQty').value);
+  if ((!code && description.length < 3) || !Number.isSafeInteger(qty) || qty < 1 || qty > 100000) {
+    $('spareFeedback').textContent = 'Enter a handset and a valid whole-number quantity.';
+    return;
+  }
+  $('spareSave').disabled = true;
+  $('spareCancel').disabled = true;
+  $('spareSave').textContent = 'Saving…';
+  $('spareFeedback').textContent = 'Adding spare units…';
+  api('addSpareUnits', {data:{code, description, qty}}).then(() => {
+    $('spareFeedback').textContent = '';
+    $('spareModal').classList.remove('open');
+    document.body.classList.remove('noscroll');
+    refreshAvailableUnits();
+  }).catch(err => {
+    $('spareFeedback').textContent = 'Could not add stock: ' + err.message;
+  }).finally(() => {
+    $('spareSave').disabled = false;
+    $('spareCancel').disabled = false;
+    $('spareSave').textContent = 'Add Units';
+  });
+}
+
+// Recheck availability periodically while the app is visible so multiple
+// sellers see new allocations, returns, and admin stock entries.
+setInterval(() => { if (S.loaded && !document.hidden && !S.fetching) refreshAvailableUnits(); }, 90000);
+
 // Live countdown + auto-release when time is up
 setInterval(() => {
   if (!S.loaded) return;
@@ -3305,7 +3419,7 @@ function toast(msg, err) {
   clearTimeout(tTimer);
   tTimer = setTimeout(() => t.style.display = 'none', err ? 5500 : 3200);
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUpdateAttachment(); closeColorDropdown(); closeForm(); closeUsers(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUpdateAttachment(); closeColorDropdown(); closeForm(); closeUsers(); closeSpareModal(); } });
 
 /* ================= Start login without waiting for Google SDK ================= */
 (function bootstrapAuth() {
