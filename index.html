@@ -1670,7 +1670,13 @@ a.nav-item:hover{color:#274ebd}
       </div>
       <div><label>Quantity <span class="req">*</span></label><input id="f_qty" type="number" min="1" value="1" required></div>
       <div><label>Transaction Type <span class="req">*</span></label><select id="f_type" required></select></div>
-      <div><label>Requestor / Seller <span class="req">*</span></label><input id="f_seller" readonly tabindex="-1"></div>
+      <div>
+        <label for="f_seller_admin">Requestor / Seller <span class="req">*</span></label>
+        <input id="f_seller" readonly tabindex="-1" aria-label="Signed-in seller">
+        <select id="f_seller_admin" aria-label="Choose requestor or seller" required style="display:none">
+          <option value="">Select seller...</option>
+        </select>
+      </div>
       <div><label for="f_request_category">Request Category <span class="req">*</span></label>
         <select id="f_request_category" required>
           <option value="" disabled selected>Select request category</option>
@@ -2148,7 +2154,7 @@ function init(d) {
     : '👁️ <span><b>Seller</b> — you can add new requests, view and search. To edit or change status, ask the admin.</span>';
   document.querySelectorAll('.admin-col').forEach(el => el.style.display = S.admin ? '' : 'none');
 
-  // Requestor / Seller always = signed-in user's name
+  // Seller requests use their own name; Admin may choose from registered Sellers.
   S.users = d.users || [];
   $('btnUsers').style.display = S.admin ? '' : 'none';
   $('navUsers').style.display = S.admin ? '' : 'none';
@@ -2645,7 +2651,32 @@ function openForm(id) {
   $('f_qty').value = r ? r.qty : 1;
   $('f_type').value = r ? r.type : '';
   $('f_request_category').value = r ? (r.requestCategory || '') : '';
-  $('f_seller').value = r ? r.seller : S.user.name;
+  // Admin chooses a registered Seller for each new request; regular Sellers keep their own name.
+  const sellerInput = $('f_seller');
+  const sellerSelect = $('f_seller_admin');
+  if (S.admin) {
+    const names = [...new Set((S.users || [])
+      .filter(u => String(u.role || '').toLowerCase() === 'seller')
+      .map(u => String(u.name || '').trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b));
+    const previousSeller = r ? String(r.seller || '').trim() : '';
+    // An old request may belong to someone who has since been removed from Users.
+    // Keep that existing assignment available when editing, without adding it to new requests.
+    const isFormerSeller = !!previousSeller && !names.includes(previousSeller);
+    sellerSelect.innerHTML = '<option value="">Select seller...</option>' +
+      (isFormerSeller ? `<option value="${esc(previousSeller)}">${esc(previousSeller)} (previous assignment)</option>` : '') +
+      names.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('');
+    sellerSelect.value = previousSeller || '';
+    sellerSelect.style.display = '';
+    sellerSelect.required = true;
+    sellerInput.style.display = 'none';
+  } else {
+    sellerInput.value = S.user.name;
+    sellerInput.style.display = '';
+    sellerSelect.style.display = 'none';
+    sellerSelect.required = false;
+    sellerSelect.value = '';
+  }
   $('f_wl').value = r ? r.waitlist : '';
   $('f_status').value = r ? (S.statuses.find(s => sameStatus(s, r.status)) || r.status) : firstStatus();
   $('f_remarks').value = r ? r.remarks : '';
@@ -2688,7 +2719,7 @@ function submitForm(e) {
     handset: $('f_handset').value.trim(), color: $('f_color').value.trim(),
     qty: Number($('f_qty').value) || 1, type: $('f_type').value,
     requestCategory: $('f_request_category').value,
-    seller: $('f_seller').value || S.user.name,
+    seller: S.admin ? $('f_seller_admin').value : S.user.name,
     waitlist: S.admin ? $('f_wl').value.trim() : '',
     status: S.admin ? $('f_status').value : firstStatus(),
     remarks: $('f_remarks').value.trim(),
