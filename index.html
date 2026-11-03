@@ -1550,7 +1550,7 @@ a.nav-item:hover{color:#274ebd}
               </div>
             </div>
             <ul class="top available-units-list" id="avail" aria-live="polite"></ul>
-            <div class="note">Spare Handsets (Available Units status) + unassigned Hold Expired. Counted once.</div>
+            <div class="note">Lapsed units from sellers (48h hold ended) + units the Admin added as Available Units.</div>
           </section>
           <section class="panel insight-panel">
             <div class="panel-heading"><h3>Most Requested Handsets</h3><span class="section-icon">↗</span></div>
@@ -2244,8 +2244,8 @@ const localAvailable = summarizeUnits(S.rows.filter(r =>
 const availableCount = S.availableUnits && S.availableUnits.sourceVersion === 'status-only-v3'
   ? serverAvailable : localAvailable;
 const breakdown = S.availableUnits && S.availableUnits.sourceVersion === 'status-only-v3'
-  ? `Hold Expired: ${formatCount(S.availableUnits.expiredUnits)} · Spare Handsets: ${formatCount(S.availableUnits.spareUnits)}`
-  : 'Hold Expired + Spare Handsets';
+  ? `Lapsed: ${formatCount(S.availableUnits.expiredUnits)} + Admin added: ${formatCount(S.availableUnits.spareUnits)}`
+  : 'Lapsed + Admin added';
 
   const cards = [
     { label: 'Total Standard Requests', value: standard.length, subtitle: summarizeUnits(standard) + ' handset units', colors: ['#537af0','#2d50ca'], icon:'▤' },
@@ -2864,7 +2864,8 @@ function renderAvail() {
     const next = S.rows.filter(r => r.status === 'Awaiting Unit' &&
       (norm(r.handset) === k || (x.color && norm(r.handset) === k && norm(r.color) === norm(x.color))))
       .sort((a,b) => (parseInt(a.waitlist,10)||1e9)-(parseInt(b.waitlist,10)||1e9))[0];
-    const code = x.codes && x.codes.length ? 'Item ID: '+x.codes.join(', ') : (x.source || 'Available');
+    const parts = [x.expiredUnits ? 'Lapsed ' + formatCount(x.expiredUnits) : '', x.spareUnits ? 'Admin ' + formatCount(x.spareUnits) : ''].filter(Boolean).join(' + ');
+    const code = (parts || x.source || 'Available') + (x.codes && x.codes.length ? ' · Item ID: ' + x.codes.join(', ') : '');
     return `<li><span><span class="available-desc">${esc(x.handset)}</span>
        <span class="available-sub">${esc(x.color || code)}${x.color ? ' · '+esc(code):''}${next ? ' · Next: '+esc(next.id) : ''}</span></span>
        <span style="display:flex;align-items:center;gap:8px"><span class="u">${formatCount(x.units)}</span>
