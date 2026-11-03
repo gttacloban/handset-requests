@@ -1,8 +1,8 @@
 {
   "id": "/handset-requests/",
-  "name": "Globe | Handset Pre-Order & Requests",
-  "short_name": "Handset Requests",
-  "description": "Globe handset pre-order and requests management for authorized staff.",
+  "name": "HPR Portal",
+  "short_name": "HPR Portal",
+  "description": "HPR Portal — Globe handset pre-order and requests management for authorized staff.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
