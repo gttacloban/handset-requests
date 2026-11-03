@@ -123,6 +123,7 @@ span.st{cursor:default}
 label{font-size:13px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px}
 label .req{color:var(--ca)}
 .hint{font-size:11px;color:var(--muted)}
+.rmk{display:block;margin-top:4px;max-width:260px;font-size:12px;line-height:1.4;color:var(--muted);white-space:normal;word-break:break-word}
 .sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
 .form-save-message{font-size:12px;align-self:center;flex:1 1 100%;color:var(--muted);line-height:1.35}
@@ -2421,7 +2422,7 @@ function renderTable() {
       <td>${esc(r.pending ? '…' : r.id)}</td>
       <td>${esc(r.date)}</td>
       <td>${esc(r.first)} ${esc(r.last)}<span class="small">${esc(r.mobile)}</span></td>
-      <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span></td>
+      <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span>${r.remarks ? `<span class="rmk" title="${esc(r.remarks)}">📝 ${esc(r.remarks)}</span>` : ''}</td>
       <td>${esc(r.qty)}</td>
       <td>${esc(r.type)}${r.requestCategory ? `<span class="small">${esc(r.requestCategory)}</span>` : ''}</td>
       <td>${esc(r.seller)}</td>
@@ -2861,8 +2862,9 @@ function renderAvail() {
   const list = (data && Array.isArray(data.items)) ? data.items : [];
   $('avail').innerHTML = list.length ? list.map(x => {
     const k = norm(x.handset);
+    // Next customer must want the SAME handset AND the SAME color as this unit.
     const next = S.rows.filter(r => r.status === 'Awaiting Unit' &&
-      (norm(r.handset) === k || (x.color && norm(r.handset) === k && norm(r.color) === norm(x.color))))
+      norm(r.handset) === k && (!x.color || norm(r.color) === norm(x.color)))
       .sort((a,b) => (parseInt(a.waitlist,10)||1e9)-(parseInt(b.waitlist,10)||1e9))[0];
     const code = x.codes && x.codes.length ? 'Item ID: '+x.codes.join(', ') : (x.source || 'Available');
     return `<li><span><span class="available-desc">${esc(x.handset)}</span>
