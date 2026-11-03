@@ -3346,6 +3346,40 @@ document.addEventListener('visibilitychange', () => {
 });
 setInterval(() => { if (!document.hidden) refreshUpdates(); }, 60000);
 
+/* ================= Live sync: changes by anyone appear for everyone ================= */
+const SYNC_MS = 10000;
+let SYNC_REV = null;
+(function wrapApiForSync() {
+  const base = api;
+  api = function (a, p, r) {
+    S.apiBusy = (S.apiBusy || 0) + 1;
+    return Promise.resolve(base(a, p, r)).finally(() => { S.apiBusy--; });
+  };
+})();
+function syncCanRefresh() {
+  return S.loaded && !document.hidden && tokenValid() && !S.fetching && !(S.apiBusy > 0) &&
+    !S.updatesPending && !(S.rows || []).some(r => r.pending) && !document.querySelector('.modal.open');
+}
+function syncNow() {
+  if (!S.loaded || document.hidden || !tokenValid()) return;
+  fetch(CONFIG.API_URL + '?rev=1&t=' + Date.now()).then(r => r.json()).then(r => {
+    if (!r || !r.ok || r.rev == null) return;
+    if (SYNC_REV === null) { SYNC_REV = r.rev; return; }
+    if (r.rev === SYNC_REV || !syncCanRefresh()) return;   // nothing new, or user is busy: next tick
+    const rev = r.rev, email = String(AUTH.profile && AUTH.profile.email || '').toLowerCase();
+    S.fetching = true;
+    api('init').then(d => {
+      if (String(AUTH.profile && AUTH.profile.email || '').toLowerCase() !== email) return;
+      SYNC_REV = rev; S.fresh = true; init(d);
+      try { refreshAvailableUnits(); } catch (e) {}
+      try { refreshUpdates(); } catch (e) {}
+    }).catch(() => {}).finally(() => { S.fetching = false; });
+  }).catch(() => {});
+}
+setInterval(syncNow, SYNC_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
+window.addEventListener('focus', syncNow);
+
 /* ================= Toast ================= */
 let tTimer;
 function toast(msg, err) {
