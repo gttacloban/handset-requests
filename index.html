@@ -126,6 +126,17 @@ label{font-size:13px;font-weight:700;color:var(--muted);display:block;margin-bot
 label .req{color:var(--ca)}
 .hint{font-size:11px;color:var(--muted)}
 .rmk{display:block;margin-top:4px;max-width:260px;font-size:12px;line-height:1.4;color:var(--muted);white-space:normal;word-break:break-word}
+.policy-ov{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(4,10,22,.72)}
+.policy-ov.open{display:flex}
+.policy-box{width:min(100%,440px);background:#fff;color:#14213d;border-radius:18px;border-top:6px solid #e11d2e;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:24px 22px 20px;text-align:center}
+.policy-ico{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:#fde8ea;color:#e11d2e;display:grid;place-items:center;font-size:34px;line-height:1}
+.policy-box h2{margin:0 0 4px;font-size:15px;letter-spacing:.06em;color:#e11d2e;text-transform:uppercase}
+.policy-box h3{margin:0 0 14px;font-size:21px;color:#0b1f4d}
+.policy-box p{margin:0 0 10px;font-size:14.5px;line-height:1.65;color:#33405c}
+.policy-box p b{color:#0b1f4d}
+.policy-box button{margin-top:10px;width:100%;min-height:48px;border:0;border-radius:12px;background:#0b3fa8;color:#fff;font:inherit;font-weight:800;font-size:16px;cursor:pointer}
+.policy-box button:hover{background:#1450c6}
+.policy-box button:focus-visible{outline:3px solid #7aa5ff;outline-offset:2px}
 .sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
 .form-save-message{font-size:12px;align-self:center;flex:1 1 100%;color:var(--muted);line-height:1.35}
@@ -1556,9 +1567,9 @@ a.nav-item:hover{color:#274ebd}
             <div class="note">Spare Handsets (Available Units status) + unassigned Hold Expired. Counted once.</div>
           </section>
           <section class="panel insight-panel">
-            <div class="panel-heading"><h3>Most Requested Handsets</h3><span class="section-icon">↗</span></div>
+            <div class="panel-heading"><h3>Top 10 Most Requested Handsets</h3><span class="section-icon">↗</span></div>
             <ul class="top" id="top"></ul>
-            <div class="note">Ranking of handset models with the highest number of requests.</div>
+            <div class="note">Top 10 handset models with the highest number of requested units.</div>
           </section>
         </div>
         <div class="section-heading" id="requestsSection"><div><div class="eyebrow">REQUEST MONITORING</div><h2>All Requests</h2></div>
@@ -2146,6 +2157,7 @@ function loadApp() {
 }
 
 function init(d) {
+  if (!S.policyShown) { S.policyShown = true; setTimeout(showPolicy, 300); }
   S.loaded = true;
   Object.assign(S, d);
   // Color visibility always originates from the authenticated central backend.
@@ -2372,7 +2384,7 @@ function renderTop() {
     if (!map[k]) map[k] = { name: r.handset, color: r.color, units: 0, req: 0 };
     map[k].units += Number(r.qty) || 0; map[k].req++;
   });
-  const list = Object.values(map).sort((a, b) => b.units - a.units).slice(0, 8);
+  const list = Object.values(map).sort((a, b) => b.units - a.units).slice(0, 10);
   $('top').innerHTML = list.length ? list.map(x => `
     <li><span>${esc(x.name)}<span style="display:block;color:var(--muted);font-size:12px">${esc(x.color)} • ${x.req} request(s)</span></span>
     <span class="u">${x.units}</span></li>`).join('')
@@ -3426,6 +3438,23 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUpdat
     }
   }, 12000);
 })();
+</script>
+<div class="policy-ov" id="policyPopup" role="alertdialog" aria-modal="true" aria-labelledby="policyTitle" aria-describedby="policyText">
+  <div class="policy-box">
+    <div class="policy-ico" aria-hidden="true">⚠</div>
+    <h2>Important Reminder</h2>
+    <h3 id="policyTitle">HPR PORTAL POLICY</h3>
+    <div id="policyText">
+      <p>All customer requests <b>must be encoded in the HPR Portal</b> by the seller.</p>
+      <p>The Admin <b>will not process</b> any requests sent through text or chat.</p>
+      <p>Only requests logged in the portal will be recognized and processed.</p>
+    </div>
+    <button type="button" id="policyOk" onclick="closePolicy()">I Understand</button>
+  </div>
+</div>
+<script>
+function showPolicy(){ const el=document.getElementById('policyPopup'); if(!el) return; el.classList.add('open'); setTimeout(()=>{ const b=document.getElementById('policyOk'); if(b) b.focus(); },50); }
+function closePolicy(){ const el=document.getElementById('policyPopup'); if(el) el.classList.remove('open'); }
 </script>
 </body>
 </html>
