@@ -3076,22 +3076,31 @@ function unitChips(unit) {
   return String(unit || '').split(',').map(x => x.trim()).filter(Boolean)
     .map(u => `<button type="button" class="unit-chip" title="Show this unit's movements" onclick="openUnitLog('${esc(u)}')">${esc(u)}</button>`).join('');
 }
+function unitLogFromCache(unit) {
+  return (S.unitLog || []).filter(x => x[1] === unit).map(x => ({ time: x[0], unit: x[1], event: x[2],
+    from: x[3], to: x[4], by: x[5], note: x[6], handset: x[7], color: x[8] }));
+}
+function drawUnitLog(unit, list, loading) {
+  if ($('unitLogModal').dataset.unit !== unit) return;
+  const first = list[0];
+  $('unitLogSub').textContent = first ? `${first.handset} · ${first.color} · ${list.length} movement(s)${loading ? ' · updating…' : ''}`
+    : (loading ? 'Loading…' : 'No movements recorded yet.');
+  const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  $('unitLogList').innerHTML = list.map(x => `<li><span class="t">${esc(fmt(x.time))}</span>
+    <span><span class="ev">${esc(x.event)}</span>
+    ${x.from || x.to ? `<span class="mv"> · ${esc(x.from || '—')} → ${esc(x.to || '—')}</span>` : ''}
+    <span class="mv"> · ${esc(x.by)}</span>${x.note ? `<br><span class="mv">${esc(x.note)}</span>` : ''}</span></li>`).join('');
+}
 function openUnitLog(unit) {
+  $('unitLogModal').dataset.unit = unit;
   $('unitLogTitle').textContent = 'Unit history · ' + unit;
-  $('unitLogSub').textContent = 'Loading…';
-  $('unitLogList').innerHTML = '';
   $('unitLogModal').classList.add('open');
   document.body.classList.add('noscroll');
-  api('unitLog', { unit: unit }).then(list => {
-    list = list || [];
-    const first = list[0];
-    $('unitLogSub').textContent = first ? `${first.handset} · ${first.color} · ${list.length} movement(s)` : 'No movements recorded yet.';
-    const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-    $('unitLogList').innerHTML = list.map(x => `<li><span class="t">${esc(fmt(x.time))}</span>
-      <span><span class="ev">${esc(x.event)}</span>
-      ${x.from || x.to ? `<span class="mv"> · ${esc(x.from || '—')} → ${esc(x.to || '—')}</span>` : ''}
-      <span class="mv"> · ${esc(x.by)}</span>${x.note ? `<br><span class="mv">${esc(x.note)}</span>` : ''}</span></li>`).join('');
-  }).catch(err => { $('unitLogSub').textContent = err.message; });
+  // Show the movements already loaded with the dashboard at once, then refresh quietly.
+  drawUnitLog(unit, unitLogFromCache(unit), true);
+  api('unitLog', { unit: unit })
+    .then(list => drawUnitLog(unit, list || [], false))
+    .catch(() => drawUnitLog(unit, unitLogFromCache(unit), false));
 }
 function closeUnitLog() {
   $('unitLogModal').classList.remove('open');
