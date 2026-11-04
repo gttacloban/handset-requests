@@ -2890,7 +2890,13 @@ function holdRequest(id) {
   if (!S.admin) return;
   const r = S.rows.find(x => x.id === id);
   if (!r) return;
-  if (!confirm(`Start a ${HOLD_MAX}-hour hold for ${r.first} ${r.last}?\n${r.handset} (${r.color})\n\nThe hold lapses automatically after ${HOLD_MAX} hours.`)) return;
+  const takeBack = isLapsed(r.status) && r.reassignedTo;
+  const msg = takeBack
+    ? `Take the unit back for ${r.first} ${r.last}?\n${r.handset} (${r.color})\n\nThe unit is now with ${r.reassignedTo}. That request goes back to Awaiting Unit, and ${r.id} gets a new hold.`
+    : r.status === 'For Release'
+      ? `Extend the hold for ${r.first} ${r.last}?\n${r.handset} (${r.color})\n\nThe countdown starts again from now.`
+      : `Start a ${HOLD_MAX}-hour hold for ${r.first} ${r.last}?\n${r.handset} (${r.color})\n\nThe hold lapses automatically after ${HOLD_MAX} hours.`;
+  if (!confirm(msg)) return;
   const hours = HOLD_MAX;
   const backup = { ...r };
   r.status = 'For Release'; r.holdUntil = Date.now() + hours * 3600000; r.releasedAt = 0;
@@ -2900,9 +2906,10 @@ function holdRequest(id) {
       const i = S.rows.findIndex(x => x.id === id);
       if (i > -1) S.rows[i] = res.row;
       if (res.usedFrom) { const u = S.rows.find(x => x.id === res.usedFrom); if (u) u.reassignedTo = id; }
+      if (res.reverted) { const j = S.rows.findIndex(x => x.id === res.reverted.id); if (j > -1) S.rows[j] = res.reverted; }
       render();
       refreshAvailableUnits();
-      toast(`${id} on hold for ${hours}h`);
+      toast(res.revertedId ? `Unit taken back: ${id} → For Release · ${res.revertedId} → Awaiting Unit` : `${id} on hold`);
     })
     .catch(err => { Object.assign(r, backup); render(); toast(err.message, true); });
 }
