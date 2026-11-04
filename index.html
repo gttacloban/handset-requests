@@ -1604,7 +1604,7 @@ a.nav-item:hover{color:#274ebd}
           </div>
           <div class="tblwrap">
             <table>
-              <thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Handset</th><th>Qty</th>
+              <thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Handset</th><th>Unit ID</th>
                 <th>Type</th><th>Seller/Requestor</th><th>WL #</th><th>Status</th><th class="admin-col"></th></tr></thead>
               <tbody id="tbody"></tbody>
             </table>
@@ -2457,8 +2457,8 @@ function renderTable() {
       <td>${r.spare ? '<b>Spare Handsets</b>' : esc(r.pending ? '…' : r.id)}</td>
       <td>${esc(r.date)}</td>
       <td>${r.spare ? '—' : `${esc(r.first)} ${esc(r.last)}<span class="small">${esc(r.mobile)}</span>`}</td>
-      <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span>${unitChips(r.unit)}${r.remarks ? `<span class="rmk" title="${esc(r.remarks)}">📝 ${esc(r.remarks)}</span>` : ''}</td>
-      <td>${esc(r.qty)}</td>
+      <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span>${r.remarks ? `<span class="rmk" title="${esc(r.remarks)}">📝 ${esc(r.remarks)}</span>` : ''}</td>
+      <td>${unitChips(r.unit) || '<span class="small">—</span>'}</td>
       <td>${esc(r.type)}${r.requestCategory ? `<span class="small">${esc(r.requestCategory)}</span>` : ''}</td>
       <td>${esc(r.seller)}</td>
       <td class="wl">${esc(wlText(r.waitlist))}</td>
@@ -2475,9 +2475,9 @@ function renderTable() {
         </div>
         <div class="id">${esc(r.spare ? 'No PO #' : (r.pending ? 'Saving…' : r.id))}<br>${esc(r.date)}</div>
       </div>
-      <div class="dev">${esc(r.handset)} <span>• ${esc(r.color)}</span>${unitChips(r.unit)}</div>
+      <div class="dev">${esc(r.handset)} <span>• ${esc(r.color)}</span></div>
       <div class="chips">
-        <span class="chip">Qty <b>${esc(r.qty)}</b></span>
+        <span class="chip">Unit ID ${unitChips(r.unit) || '<b>—</b>'}</span>
         <span class="chip">WL # <b>${esc(wlText(r.waitlist))}</b></span>
         <span class="chip">${esc(r.type)}</span>
         ${r.requestCategory ? `<span class="chip">${esc(r.requestCategory)}</span>` : ''}
