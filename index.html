@@ -2417,7 +2417,9 @@ function statusCell(r) {
 }
 
 function adminButtons(r) {
-  if (!S.admin || r.pending || r.spare) return '';
+  if (!S.admin || r.pending) return '';
+  if (r.spare) return `<button class="icon" title="Edit spare handset" onclick="openSpareForm('${esc(r.spareKey)}')">✎</button>
+          <button class="icon" title="Delete spare handset" onclick="removeSpare('${esc(r.spareKey)}')">🗑</button>`;
   const canHold = !['Fulfilled', 'Cancelled'].includes(r.status);
   return `${canHold ? `<button class="icon" title="Start 48h hold" onclick="holdRequest('${esc(r.id)}')">⏱</button>` : ''}
           <button class="icon" title="Edit" onclick="openForm('${esc(r.id)}')">✎</button>
@@ -2677,7 +2679,8 @@ function setRequestSaving(isSaving, message, failed) {
   status.className = 'form-save-message' + (failed ? ' error' : '');
 }
 function openForm(id) {
-  if (S.saving) return; // Don't open another request before confirming the last save.
+  if (S.saving) return;
+  S.editSpareKey = ''; // Don't open another request before confirming the last save.
   const r = id ? S.rows.find(x => x.id === id) : null;
   if (r && !S.admin) return toast('Only the admin can edit. Please ask the admin.', true);
 
@@ -2801,7 +2804,7 @@ function submitForm(e) {
     remarks: $('f_remarks').value.trim(),
     clientSaveId: S.saveClientId || (S.saveClientId = newSaveIdentifier())
   };
-  if (S.admin && !o.id && isSpareStatus(o.status)) return saveSpareFromForm(o);
+  if (S.admin && !o.id && (S.editSpareKey || isSpareStatus(o.status))) return saveSpareFromForm(o);
   if (!/^\+?\d{10,13}$/.test(o.mobile)) return toast('Mobile # is not valid', true);
   if (!o.type || !o.seller) return toast('Select transaction type and seller', true);
   if (!['Standard Request', 'Latest Request'].includes(o.requestCategory)) return toast('Select request category', true);
@@ -2978,7 +2981,9 @@ function editUser(email) {
 const isSpareStatus = st => norm(st) === 'available units';
 const SPARE_HIDE = ['f_first', 'f_last', 'f_mobile', 'f_type', 'f_seller_admin', 'f_request_category', 'f_wl'];
 function applyUnitMode() {
-  const unit = S.admin && !$('f_id').value && isSpareStatus($('f_status').value);
+  const unit = S.admin && !$('f_id').value && (!!S.editSpareKey || isSpareStatus($('f_status').value));
+  const stWrap = $('f_status').parentElement;
+  if (stWrap && S.admin) stWrap.style.display = S.editSpareKey ? 'none' : '';
   SPARE_HIDE.forEach(id => {
     const el = $(id); if (!el) return;
     const wrap = el.parentElement;
@@ -2989,13 +2994,41 @@ function applyUnitMode() {
   $('f_request_category').required = !unit;
   $('f_seller_admin').required = S.admin && !unit;
   $('f_first').required = $('f_last').required = !S.admin;
-  $('formTitle').textContent = $('f_id').value ? $('formTitle').textContent : (unit ? 'New Available Unit (Spare Handset)' : 'New Request');
+  $('formTitle').textContent = $('f_id').value ? $('formTitle').textContent
+    : S.editSpareKey ? 'Edit Spare Handset' : (unit ? 'New Available Unit (Spare Handset)' : 'New Request');
+}
+function openSpareForm(key) {
+  const r = S.rows.find(x => x.spare && x.spareKey === key);
+  if (!r || !S.admin) return;
+  openForm();
+  S.editSpareKey = key;
+  $('f_handset').value = r.handset;
+  $('f_color').value = r.color;
+  $('f_qty').value = r.qty;
+  $('f_date').value = r.date;
+  $('f_remarks').value = r.remarks || '';
+  $('f_status').value = S.statuses.find(st => isSpareStatus(st)) || 'Available Units';
+  applyUnitMode();
+}
+function removeSpare(key) {
+  const r = S.rows.find(x => x.spare && x.spareKey === key);
+  if (!r || !S.admin) return;
+  if (!confirm(`Delete this spare handset?\n${r.handset} (${r.color}) · Qty ${r.qty}`)) return;
+  const backup = S.rows.slice();
+  S.rows = S.rows.filter(x => x !== r);
+  render();
+  api('deleteSpare', { key: key }).then(res => {
+    if (res.availableUnits) { S.availableUnits = res.availableUnits; S.inventory = res.inventory || S.inventory; }
+    renderAvail(); saveCache();
+    toast('Spare handset deleted');
+  }).catch(err => { S.rows = backup; render(); toast(err.message, true); });
 }
 function saveSpareFromForm(o) {
   const unit = { handset: o.handset, color: o.color, qty: o.qty, remarks: o.remarks };
   if (!unit.handset || !unit.color) return toast('Enter the handset and color', true);
   setRequestSaving(true, 'Saving… Please keep this form open.');
-  api('addUnit', { unit: unit }).then(res => {
+  const editing = !!S.editSpareKey;
+  (editing ? api('editSpare', { key: S.editSpareKey, unit: unit }) : api('addUnit', { unit: unit })).then(res => {
     (res.assigned || []).forEach(row => {
       const i = S.rows.findIndex(r => r.id === row.id);
       if (i > -1) S.rows[i] = row;
@@ -3006,7 +3039,7 @@ function saveSpareFromForm(o) {
     const ids = (res.assigned || []).map(r => r.id);
     toast(ids.length
       ? ids.map(id => id + ' → For Release (48h)').join(', ') + (res.spareUnits ? ` · ${res.spareUnits} saved as Spare Handset` : '')
-      : `${unit.qty} unit(s) saved as Spare Handset`);
+      : editing ? 'Spare handset updated' : `${unit.qty} unit(s) saved as Spare Handset`);
     // Load the new spare row(s) into the request list.
     if (tokenValid() && !S.fetching) { S.fetching = true; api('init').then(d => init(d)).catch(() => {}).finally(() => { S.fetching = false; }); }
   }).catch(err => setRequestSaving(false, 'Save not confirmed: ' + err.message, true));
