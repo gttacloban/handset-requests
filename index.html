@@ -137,6 +137,15 @@ label .req{color:var(--ca)}
 .policy-box button{margin-top:10px;width:100%;min-height:48px;border:0;border-radius:12px;background:#0b3fa8;color:#fff;font:inherit;font-weight:800;font-size:16px;cursor:pointer}
 .policy-box button:hover{background:#1450c6}
 .policy-box button:focus-visible{outline:3px solid #7aa5ff;outline-offset:2px}
+.unit-chip{display:inline-block;margin:4px 6px 0 0;padding:1px 8px;border-radius:999px;border:1px solid var(--line,#cbd5e1);background:transparent;color:inherit;font:inherit;font-size:11px;font-weight:700;letter-spacing:.02em;cursor:pointer;opacity:.85}
+.unit-chip:hover{opacity:1;text-decoration:underline}
+.ulog{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:0}
+.ulog li{display:grid;grid-template-columns:120px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid rgba(127,140,170,.25);font-size:13px}
+.ulog li:last-child{border-bottom:0}
+.ulog .t{opacity:.75;font-variant-numeric:tabular-nums}
+.ulog .ev{font-weight:700}
+.ulog .mv{opacity:.85}
+@media(max-width:480px){.ulog li{grid-template-columns:1fr;gap:2px}}
 .sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
 .form-save-message{font-size:12px;align-self:center;flex:1 1 100%;color:var(--muted);line-height:1.35}
@@ -1727,6 +1736,15 @@ a.nav-item:hover{color:#274ebd}
 </div>
 
 <!-- Users (admin only) -->
+<div class="modal" id="unitLogModal" onclick="if(event.target===this)closeUnitLog()">
+  <div class="box">
+    <h2 id="unitLogTitle">Unit history</h2>
+    <div class="note" id="unitLogSub"></div>
+    <ul class="ulog" id="unitLogList"></ul>
+    <div class="actions"><button type="button" class="btn btn-light" onclick="closeUnitLog()">Close</button></div>
+  </div>
+</div>
+
 <div class="modal" id="usersModal" onclick="if(event.target===this)closeUsers()">
   <div class="box">
     <h2>Users</h2>
@@ -2439,7 +2457,7 @@ function renderTable() {
       <td>${r.spare ? '<b>Spare Handsets</b>' : esc(r.pending ? '…' : r.id)}</td>
       <td>${esc(r.date)}</td>
       <td>${r.spare ? '—' : `${esc(r.first)} ${esc(r.last)}<span class="small">${esc(r.mobile)}</span>`}</td>
-      <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span>${r.remarks ? `<span class="rmk" title="${esc(r.remarks)}">📝 ${esc(r.remarks)}</span>` : ''}</td>
+      <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span>${unitChips(r.unit)}${r.remarks ? `<span class="rmk" title="${esc(r.remarks)}">📝 ${esc(r.remarks)}</span>` : ''}</td>
       <td>${esc(r.qty)}</td>
       <td>${esc(r.type)}${r.requestCategory ? `<span class="small">${esc(r.requestCategory)}</span>` : ''}</td>
       <td>${esc(r.seller)}</td>
@@ -2457,7 +2475,7 @@ function renderTable() {
         </div>
         <div class="id">${esc(r.spare ? 'No PO #' : (r.pending ? 'Saving…' : r.id))}<br>${esc(r.date)}</div>
       </div>
-      <div class="dev">${esc(r.handset)} <span>• ${esc(r.color)}</span></div>
+      <div class="dev">${esc(r.handset)} <span>• ${esc(r.color)}</span>${unitChips(r.unit)}</div>
       <div class="chips">
         <span class="chip">Qty <b>${esc(r.qty)}</b></span>
         <span class="chip">WL # <b>${esc(wlText(r.waitlist))}</b></span>
@@ -3051,6 +3069,33 @@ function saveSpareFromForm(o) {
     // Load the new spare row(s) into the request list.
     if (tokenValid() && !S.fetching) { S.fetching = true; api('init').then(d => init(d)).catch(() => {}).finally(() => { S.fetching = false; }); }
   }).catch(err => setRequestSaving(false, 'Save not confirmed: ' + err.message, true));
+}
+
+/* ================= Unit history ================= */
+function unitChips(unit) {
+  return String(unit || '').split(',').map(x => x.trim()).filter(Boolean)
+    .map(u => `<button type="button" class="unit-chip" title="Show this unit's movements" onclick="openUnitLog('${esc(u)}')">${esc(u)}</button>`).join('');
+}
+function openUnitLog(unit) {
+  $('unitLogTitle').textContent = 'Unit history · ' + unit;
+  $('unitLogSub').textContent = 'Loading…';
+  $('unitLogList').innerHTML = '';
+  $('unitLogModal').classList.add('open');
+  document.body.classList.add('noscroll');
+  api('unitLog', { unit: unit }).then(list => {
+    list = list || [];
+    const first = list[0];
+    $('unitLogSub').textContent = first ? `${first.handset} · ${first.color} · ${list.length} movement(s)` : 'No movements recorded yet.';
+    const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    $('unitLogList').innerHTML = list.map(x => `<li><span class="t">${esc(fmt(x.time))}</span>
+      <span><span class="ev">${esc(x.event)}</span>
+      ${x.from || x.to ? `<span class="mv"> · ${esc(x.from || '—')} → ${esc(x.to || '—')}</span>` : ''}
+      <span class="mv"> · ${esc(x.by)}</span>${x.note ? `<br><span class="mv">${esc(x.note)}</span>` : ''}</span></li>`).join('');
+  }).catch(err => { $('unitLogSub').textContent = err.message; });
+}
+function closeUnitLog() {
+  $('unitLogModal').classList.remove('open');
+  document.body.classList.remove('noscroll');
 }
 
 function openUsers() {
