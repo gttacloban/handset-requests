@@ -1736,12 +1736,22 @@ a.nav-item:hover{color:#274ebd}
 </div>
 
 <!-- Users (admin only) -->
-<div class="modal" id="unitLogModal" onclick="if(event.target===this)closeUnitLog()">
+<div class="modal" id="unitLogModal" style="z-index:80" onclick="if(event.target===this)closeUnitLog()">
   <div class="box">
     <h2 id="unitLogTitle">Unit history</h2>
     <div class="note" id="unitLogSub"></div>
     <ul class="ulog" id="unitLogList"></ul>
     <div class="actions"><button type="button" class="btn btn-light" onclick="closeUnitLog()">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="loginLogModal" style="z-index:80" onclick="if(event.target===this)closeLoginLog()">
+  <div class="box">
+    <h2>Login history</h2>
+    <div class="fgrid"><div class="full"><label for="ll_user">User</label><select id="ll_user" onchange="loadLoginLog()"></select></div></div>
+    <div class="note" id="loginLogSub">Philippine time · newest first</div>
+    <ul class="ulog" id="loginLogList"></ul>
+    <div class="actions"><button type="button" class="btn btn-light" onclick="closeLoginLog()">Close</button></div>
   </div>
 </div>
 
@@ -1756,7 +1766,7 @@ a.nav-item:hover{color:#274ebd}
     </form>
     <div class="note">The name is used as Requestor / Seller on this person's requests.</div>
     <div class="ulist" id="ulist"></div>
-    <div class="actions"><button type="button" class="btn btn-light" onclick="closeUsers()">Close</button></div>
+    <div class="actions"><button type="button" class="btn btn-light" onclick="openLoginLog()">🕘 Login history</button><button type="button" class="btn btn-light" onclick="closeUsers()">Close</button></div>
   </div>
 </div>
 
@@ -2021,6 +2031,7 @@ function onCredential(resp) {
     loginError('Sign-in was not completed. Please try again.');
     return;
   }
+  S.loginKind = 'Signed in';
   try { setToken(resp.credential); } catch (e) {
     setLoginBusy(false);
     loginError('The sign-in response could not be read. Please try again.');
@@ -2069,7 +2080,27 @@ function retryLogin() {
   }
 }
 
+function sendSession(event) {
+  if (!tokenValid() || !S.sessionLogged || /PASTE_/.test(CONFIG.API_URL)) return;
+  const body = JSON.stringify({ action: 'session', idToken: AUTH.token, event: event, device: deviceLabel() });
+  try {
+    if (navigator.sendBeacon && navigator.sendBeacon(CONFIG.API_URL, new Blob([body], { type: 'text/plain;charset=utf-8' }))) return;
+  } catch (e) {}
+  try { fetch(CONFIG.API_URL, { method: 'POST', body: body, keepalive: true, headers: { 'Content-Type': 'text/plain;charset=utf-8' } }); } catch (e) {}
+}
+function deviceLabel() {
+  const ua = navigator.userAgent || '';
+  const os = /iPhone|iPad|iPod/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Other';
+  const br = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  const app = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone ? ' · App' : '';
+  return os + ' · ' + br + app;
+}
+// Closing the tab or the installed app (not just switching apps).
+window.addEventListener('pagehide', e => { if (!e.persisted && !S.signingOut) sendSession('Closed portal'); });
+
 function logout(silent) {
+  S.signingOut = true;
+  sendSession('Signed out');
   try { if (gisInitialized) google.accounts.id.disableAutoSelect(); } catch (e) {}
   clearToken();
   ++attachmentPrefetchGeneration_;
@@ -2176,6 +2207,10 @@ function loadApp() {
 }
 
 function init(d) {
+  if (S.fresh && !S.sessionLogged) {
+    S.sessionLogged = true;
+    api('session', { event: S.loginKind || 'Opened portal', device: deviceLabel() }).catch(() => {});
+  }
   if (!S.policyShown) { S.policyShown = true; setTimeout(showPolicy, 300); }
   S.loaded = true;
   Object.assign(S, d);
@@ -3115,6 +3150,31 @@ function closeUnitLog() {
   $('unitLogModal').classList.remove('open');
   document.body.classList.remove('noscroll');
 }
+
+/* ================= Login history (admin) ================= */
+function openLoginLog() {
+  if (!S.admin) return;
+  const users = (S.users || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  $('ll_user').innerHTML = '<option value="">All users</option>' +
+    users.map(u => `<option value="${esc(u.email)}">${esc(u.name)} · ${esc(u.role)}</option>`).join('');
+  $('loginLogModal').classList.add('open');
+  loadLoginLog();
+}
+function loadLoginLog() {
+  const email = $('ll_user').value;
+  $('loginLogSub').textContent = 'Loading…';
+  $('loginLogList').innerHTML = '';
+  api('loginLog', { email: email }).then(list => {
+    if ($('ll_user').value !== email) return;
+    list = list || [];
+    $('loginLogSub').textContent = list.length ? `Philippine time · newest first · ${list.length} record(s)` : 'No records yet.';
+    const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+    $('loginLogList').innerHTML = list.map(x => `<li><span class="t">${esc(fmt(x.time))}</span>
+      <span><span class="ev">${esc(x.event)}</span><span class="mv"> · ${esc(x.name)} (${esc(x.role)})</span>
+      <br><span class="mv">${esc(x.email)}${x.device ? ' · ' + esc(x.device) : ''}</span></span></li>`).join('');
+  }).catch(err => { $('loginLogSub').textContent = err.message; });
+}
+function closeLoginLog() { $('loginLogModal').classList.remove('open'); }
 
 function openUsers() {
   if (!S.admin) return;
