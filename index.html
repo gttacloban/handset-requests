@@ -2160,7 +2160,8 @@ const CACHE_KEY = () => 'hpo_cache_' + String((AUTH.profile && AUTH.profile.emai
 function saveCache() {
   if (!S.loaded || !S.user) return;
   try {
-    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates, inventory: S.inventory, availableUnits: S.availableUnits }));
+    localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates, inventory: S.inventory, availableUnits: S.availableUnits,
+      unitLog: (S.unitLog || []).slice(-1500), loginLog: S.admin ? (S.loginLog || []).slice(0, 500) : undefined }));
     localStorage.setItem('hpo_last', S.user.email);
   } catch (e) {}
 }
@@ -2212,7 +2213,11 @@ function loadApp() {
 function init(d) {
   if (S.fresh && !S.sessionLogged) {
     S.sessionLogged = true;
-    api('session', { event: S.loginKind || 'Opened portal', device: deviceLabel() }).catch(() => {});
+    const ev = S.loginKind || 'Opened portal';
+    api('session', { event: ev, device: deviceLabel() }).catch(() => {});
+    if (d.user && d.user.admin) {
+      S.pendingLogin = { time: Date.now(), email: d.user.email, name: d.user.name, role: 'Admin', event: ev, device: deviceLabel() };
+    }
   }
   if (!S.policyShown) { S.policyShown = true; setTimeout(showPolicy, 300); }
   S.loaded = true;
@@ -3167,7 +3172,7 @@ function drawLoginLog(email, list, loading) {
   if ($('ll_user').value !== email) return;
   $('loginLogSub').textContent = list.length
     ? `Philippine time · newest first · ${list.length} record(s)${loading ? ' · updating…' : ''}`
-    : (loading ? 'Loading…' : 'No records yet.');
+    : (loading ? 'No records loaded yet · updating…' : 'No records yet.');
   const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
   $('loginLogList').innerHTML = list.map(x => `<li><span class="t">${esc(fmt(x.time))}</span>
     <span><span class="ev">${esc(x.event)}</span><span class="mv"> · ${esc(x.name)} (${esc(x.role)})</span>
@@ -3176,7 +3181,9 @@ function drawLoginLog(email, list, loading) {
 function loadLoginLog() {
   const email = $('ll_user').value;
   // Show the records loaded with the dashboard at once, then refresh quietly.
-  const cached = (S.loginLog || []).filter(x => !email || String(x.email).toLowerCase() === email.toLowerCase());
+  let all = S.loginLog || [];
+  if (S.pendingLogin && !all.some(x => x.email === S.pendingLogin.email && Math.abs(x.time - S.pendingLogin.time) < 120000)) all = [S.pendingLogin].concat(all);
+  const cached = all.filter(x => !email || String(x.email).toLowerCase() === email.toLowerCase());
   drawLoginLog(email, cached, true);
   api('loginLog', { email: email }).then(list => {
     list = list || [];
