@@ -3163,19 +3163,26 @@ function openLoginLog() {
   $('loginLogModal').classList.add('open');
   loadLoginLog();
 }
+function drawLoginLog(email, list, loading) {
+  if ($('ll_user').value !== email) return;
+  $('loginLogSub').textContent = list.length
+    ? `Philippine time · newest first · ${list.length} record(s)${loading ? ' · updating…' : ''}`
+    : (loading ? 'Loading…' : 'No records yet.');
+  const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+  $('loginLogList').innerHTML = list.map(x => `<li><span class="t">${esc(fmt(x.time))}</span>
+    <span><span class="ev">${esc(x.event)}</span><span class="mv"> · ${esc(x.name)} (${esc(x.role)})</span>
+    <br><span class="mv">${esc(x.email)}${x.device ? ' · ' + esc(x.device) : ''}</span></span></li>`).join('');
+}
 function loadLoginLog() {
   const email = $('ll_user').value;
-  $('loginLogSub').textContent = 'Loading…';
-  $('loginLogList').innerHTML = '';
+  // Show the records loaded with the dashboard at once, then refresh quietly.
+  const cached = (S.loginLog || []).filter(x => !email || String(x.email).toLowerCase() === email.toLowerCase());
+  drawLoginLog(email, cached, true);
   api('loginLog', { email: email }).then(list => {
-    if ($('ll_user').value !== email) return;
     list = list || [];
-    $('loginLogSub').textContent = list.length ? `Philippine time · newest first · ${list.length} record(s)` : 'No records yet.';
-    const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
-    $('loginLogList').innerHTML = list.map(x => `<li><span class="t">${esc(fmt(x.time))}</span>
-      <span><span class="ev">${esc(x.event)}</span><span class="mv"> · ${esc(x.name)} (${esc(x.role)})</span>
-      <br><span class="mv">${esc(x.email)}${x.device ? ' · ' + esc(x.device) : ''}</span></span></li>`).join('');
-  }).catch(err => { $('loginLogSub').textContent = err.message; });
+    if (!email) S.loginLog = list;
+    drawLoginLog(email, list, false);
+  }).catch(err => { drawLoginLog(email, cached, false); if (!cached.length) $('loginLogSub').textContent = err.message; });
 }
 function closeLoginLog() { $('loginLogModal').classList.remove('open'); }
 
