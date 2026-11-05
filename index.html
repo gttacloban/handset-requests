@@ -1757,7 +1757,10 @@ a.nav-item:hover{color:#274ebd}
 
 <div class="modal" id="usersModal" onclick="if(event.target===this)closeUsers()">
   <div class="box">
-    <h2>Users</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <h2 style="margin:0">Users</h2>
+      <button type="button" class="btn btn-light" onclick="openLoginLog()">🕘 Login history</button>
+    </div>
     <form class="fgrid" onsubmit="addUser(event)">
       <div><label>Gmail <span class="req">*</span></label><input id="u_email" type="email" placeholder="name@gmail.com" required></div>
       <div><label>Name <span class="req">*</span></label><input id="u_name" placeholder="e.g. Narvs" required></div>
@@ -1766,7 +1769,7 @@ a.nav-item:hover{color:#274ebd}
     </form>
     <div class="note">The name is used as Requestor / Seller on this person's requests.</div>
     <div class="ulist" id="ulist"></div>
-    <div class="actions"><button type="button" class="btn btn-light" onclick="openLoginLog()">🕘 Login history</button><button type="button" class="btn btn-light" onclick="closeUsers()">Close</button></div>
+    <div class="actions"><button type="button" class="btn btn-light" onclick="closeUsers()">Close</button></div>
   </div>
 </div>
 
