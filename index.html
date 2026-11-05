@@ -2286,7 +2286,7 @@ const breakdown = S.availableUnits && S.availableUnits.sourceVersion === 'status
     { label: 'Total Latest Requests', value: latest.length, subtitle: summarizeUnits(latest) + ' handset units', colors: ['#18b4ad','#087e9e'], icon:'◎' },
     // Do not create an extra grey Available Units card from Settings > Statuses.
     ...S.statuses.filter(status => !isLegacyAvailableStatus(status)).map(status => {
-      const matching = S.rows.filter(r => sameStatus(r.status,status));
+      const matching = S.rows.filter(r => statusMatches(r, status));
       return { label:statusLabel(status), value:matching.length, subtitle:summarizeUnits(matching) + ' handset units',
         colors:DASH_STATUS_STYLES[status] ? DASH_STATUS_STYLES[status].slice(0,2) : ['#7c91ac','#526b92'],
         icon:DASH_STATUS_STYLES[status] ? DASH_STATUS_STYLES[status][2] : '▣',key:status };
@@ -2410,6 +2410,15 @@ function renderTop() {
     : '<li style="color:var(--muted)">No open requests</li>';
 }
 
+/* A row is in Available Units when its unit is free: a spare handset, or a
+   Lapsed request whose unit was not passed on (Hold Expired). Same rule as the panel. */
+function isAvailableUnitRow(r) {
+  if (r.reassignedTo) return false;
+  return !!r.spare || isLapsed(r.status) || norm(r.status) === 'available units';
+}
+function statusMatches(r, st) {
+  return norm(st) === 'available units' ? isAvailableUnitRow(r) : sameStatus(r.status, st);
+}
 function filtered() {
   const f = S.filter, q = norm(f.q);
   // Compare normalized ISO date strings, including both ends of the range.
@@ -2417,7 +2426,7 @@ function filtered() {
   if (f.dateFrom && f.dateTo && f.dateFrom > f.dateTo) return [];
   return S.rows.filter(r => {
     const requestDate = String(r.date || '').slice(0, 10);
-    return (!f.status || sameStatus(r.status, f.status)) &&
+    return (!f.status || statusMatches(r, f.status)) &&
       (!f.seller || r.seller === f.seller) &&
       (!f.type || r.type === f.type) &&
       (!f.category || r.requestCategory === f.category) &&
