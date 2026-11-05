@@ -1437,6 +1437,18 @@ a.nav-item:hover{color:#274ebd}
 .available-units-list .u{flex-shrink:0;white-space:nowrap}
 :root:is([data-theme="dark"],[data-theme="globe"]) .available-units-list .available-desc{color:var(--ink)}
 @media(max-width:700px){.available-panel-head-actions{flex-wrap:wrap;justify-content:flex-end}}
+/* Desktop: the whole request table fits the panel, no sideways scrolling. */
+@media (min-width:701px){
+  .tblwrap table{min-width:0;width:100%}
+  .tblwrap th,.tblwrap td{padding:10px 6px}
+  .tblwrap th{white-space:normal;line-height:1.25}
+  .tblwrap td{white-space:normal;overflow-wrap:break-word;vertical-align:middle}
+  .tblwrap td:first-child,.tblwrap td:nth-child(2){white-space:nowrap}
+  .tblwrap .hold{white-space:normal;max-width:240px}
+  .tblwrap .rmk{max-width:200px}
+  .tblwrap select.st{max-width:150px}
+  .tblwrap .admin-col,.tblwrap td.wl,.tblwrap .unit-chip{white-space:nowrap}
+}
 </style>
 </head>
 <body>
@@ -1607,6 +1619,7 @@ a.nav-item:hover{color:#274ebd}
               <label class="date-field" for="fl_date_from"><span>From Date</span><input type="date" id="fl_date_from" aria-label="Request date from" onchange="setDateFilter('dateFrom',this.value)"></label>
               <label class="date-field" for="fl_date_to"><span>To Date</span><input type="date" id="fl_date_to" aria-label="Request date to" onchange="setDateFilter('dateTo',this.value)"></label>
               <button type="button" class="date-clear" onclick="clearDateRange()" id="fl_date_clear">Clear Dates</button>
+              <button type="button" class="date-clear" id="archiveBtn" hidden onclick="openArchive()" title="Fulfilled and Cancelled requests older than 30 days">🗄 Archive</button>
               <div class="date-range-message" id="dateRangeMessage" role="status" aria-live="polite"></div>
             </div>
           </div>
@@ -1760,6 +1773,20 @@ a.nav-item:hover{color:#274ebd}
     <div class="note" id="loginLogSub">Philippine time · newest first</div>
     <ul class="ulog" id="loginLogList"></ul>
     <div class="actions"><button type="button" class="btn btn-light" onclick="closeLoginLog()">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="archiveModal" style="z-index:80" onclick="if(event.target===this)closeArchive()">
+  <div class="box" style="max-width:900px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <h2 style="margin:0">Archive</h2>
+      <button type="button" class="btn btn-light" id="archiveNowBtn" onclick="archiveNow()">Archive now</button>
+    </div>
+    <div class="note">Fulfilled and Cancelled requests move here 30 days after their last update (checked once a day). Search by PO #, name, mobile, handset, color, seller, Waitlist # or Unit ID.</div>
+    <div class="fgrid" style="margin-top:10px"><div class="full"><input id="ar_q" placeholder="Search the archive…" oninput="archiveSearchSoon()" autocomplete="off"></div></div>
+    <div class="note" id="archiveSub"></div>
+    <ul class="ulog" id="archiveList"></ul>
+    <div class="actions"><button type="button" class="btn btn-light" onclick="closeArchive()">Close</button></div>
   </div>
 </div>
 
@@ -3002,6 +3029,7 @@ function holdRequest(id) {
 /* Available Units = Status "Available Units" + unassigned Hold Expired.
    Do not count separately admin-entered Inventory units. */
 function renderAvail() {
+  const arBtn = $('archiveBtn'); if (arBtn) arBtn.hidden = !S.admin;
   const data = S.availableUnits;
   const list = (data && Array.isArray(data.items)) ? data.items : [];
   $('avail').innerHTML = list.length ? list.map(x => {
@@ -3208,6 +3236,47 @@ function loadLoginLog() {
   }).catch(err => { drawLoginLog(email, cached, false); if (!cached.length) $('loginLogSub').textContent = err.message; });
 }
 function closeLoginLog() { $('loginLogModal').classList.remove('open'); }
+
+/* ================= Archive (admin) ================= */
+let archiveTimer = null, archiveSeq = 0;
+function openArchive() {
+  if (!S.admin) return;
+  $('archiveModal').classList.add('open');
+  document.body.classList.add('noscroll');
+  loadArchive();
+  setTimeout(() => $('ar_q').focus(), 50);
+}
+function closeArchive() {
+  $('archiveModal').classList.remove('open');
+  document.body.classList.remove('noscroll');
+}
+function archiveSearchSoon() { clearTimeout(archiveTimer); archiveTimer = setTimeout(loadArchive, 350); }
+function loadArchive() {
+  const q = $('ar_q').value.trim();
+  const seq = ++archiveSeq;
+  $('archiveSub').textContent = 'Searching…';
+  api('archiveSearch', { q: q }).then(res => {
+    if (seq !== archiveSeq) return;
+    const rows = (res && res.rows) || [];
+    $('archiveSub').textContent = !res || !res.total ? 'The archive is empty.'
+      : `${res.found} of ${res.total} archived request(s)${res.found > rows.length ? ` · showing the newest ${rows.length}` : ''}`;
+    const d = t => t ? new Date(t).toLocaleDateString('en-US', { timeZone: PH_TZ, month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    $('archiveList').innerHTML = rows.map(r => `<li><span class="t">${esc(r.id)}<br>${esc(r.date)}</span>
+      <span><span class="ev">${esc(r.first)} ${esc(r.last)}</span><span class="mv"> · ${esc(r.mobile)}</span>
+      <br><span class="mv">${esc(r.handset)} · ${esc(r.color)} · ${esc(statusLabel(r.status))} · ${esc(r.seller)}${r.waitlist && r.waitlist !== 'N/A' ? ' · WL ' + esc(r.waitlist) : ''}</span>
+      ${unitChips(r.unit)}${r.remarks ? `<br><span class="mv">📝 ${esc(r.remarks)}</span>` : ''}
+      <br><span class="mv">Archived ${esc(d(r.archivedAt))}</span></span></li>`).join('');
+  }).catch(err => { if (seq === archiveSeq) $('archiveSub').textContent = err.message; });
+}
+function archiveNow() {
+  const btn = $('archiveNowBtn'); btn.disabled = true; btn.textContent = 'Archiving…';
+  api('archiveNow').then(res => {
+    toast(res && res.moved ? `${res.moved} row(s) moved to the archive` : 'Nothing to archive yet');
+    loadArchive();
+    if (res && res.moved && tokenValid() && !S.fetching) { S.fetching = true; api('init').then(d => init(d)).catch(() => {}).finally(() => { S.fetching = false; }); }
+  }).catch(err => toast(err.message, true))
+    .finally(() => { btn.disabled = false; btn.textContent = 'Archive now'; });
+}
 
 function openUsers() {
   if (!S.admin) return;
