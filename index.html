@@ -1119,6 +1119,8 @@ a.nav-item:hover{color:#274ebd}
   body.mobile-app-ready[data-mobile-view="analytics"] #app > .charts-grid,
   body.mobile-app-ready[data-mobile-view="stock"] #app > #stockSection,
   body.mobile-app-ready[data-mobile-view="stock"] #app > .insights-row,
+  body.mobile-app-ready[data-mobile-view="inventory"] #app > #inventorySection,
+  body.mobile-app-ready[data-mobile-view="inventory"] #app > .inventory-panel,
   body.mobile-app-ready #app > .dashboard-footer{display:block}
   /* Restore each visible section's native layout after switching mobile screens. */
   body.mobile-app-ready[data-mobile-view="dashboard"] #app > .kpis,
@@ -1129,7 +1131,8 @@ a.nav-item:hover{color:#274ebd}
   body.mobile-app-ready[data-mobile-view="dashboard"] #app > .welcome-row,
   body.mobile-app-ready[data-mobile-view="dashboard"] #app > .rolebar,
   body.mobile-app-ready[data-mobile-view="requests"] #app > #requestsSection,
-  body.mobile-app-ready[data-mobile-view="stock"] #app > #stockSection{display:flex}
+  body.mobile-app-ready[data-mobile-view="stock"] #app > #stockSection,
+  body.mobile-app-ready[data-mobile-view="inventory"] #app > #inventorySection{display:flex}
   .welcome-row{gap:8px;margin-bottom:12px}
   .welcome-row h2{font-size:19px;line-height:1.2}
   .welcome-row .tags{font-size:11px;line-height:1.45}
@@ -1449,6 +1452,23 @@ a.nav-item:hover{color:#274ebd}
   .tblwrap select.st{max-width:150px}
   .tblwrap .admin-col,.tblwrap td.wl,.tblwrap .unit-chip{white-space:nowrap}
 }
+/* 10 summary tiles: 5 per row on wide screens */
+@media (min-width:1101px){ .kpis{grid-template-columns:repeat(5,minmax(0,1fr))} }
+@media (min-width:701px) and (max-width:1100px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr))} }
+/* Stock Inventory */
+.inventory-panel{margin-bottom:20px}
+.inv-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.inv-stat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.inv-stat b{font-size:22px;font-variant-numeric:tabular-nums}
+.inv-stat span{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.inv-wrap{overflow-x:auto}
+.inv-table{width:100%;min-width:0;border-collapse:collapse;font-size:13px}
+.inv-table th,.inv-table td{padding:9px 8px;border-bottom:1px solid var(--line);white-space:normal;text-align:left}
+.inv-table td.num,.inv-table th:nth-child(n+3){text-align:right;font-variant-numeric:tabular-nums}
+.inv-table td.ok{color:#22a35a;font-weight:800}
+.inv-table td.warn{color:#e0782a;font-weight:800}
+.inv-table td.empty{text-align:center;color:var(--muted);padding:18px}
+@media (max-width:700px){ .inv-summary{grid-template-columns:repeat(2,minmax(0,1fr))} .inv-table{font-size:12px} .inv-table th,.inv-table td{padding:8px 5px} }
 </style>
 </head>
 <body>
@@ -1468,13 +1488,19 @@ a.nav-item:hover{color:#274ebd}
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg><span>Dashboard</span>
       </button>
       <button class="nav-item" type="button" data-nav="updates" onclick="navigateTo('updates')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20v-8a8 8 0 0 1 16 0v8M2 20h20M12 4V2M7 22h10"/></svg><span>Updates</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-2-3v-4a5 5 0 0 0-10 0v4zM10 20h4"/></svg><span>Updates</span>
       </button>
-      <button class="nav-item" type="button" data-nav="requests" onclick="navigateTo('requests')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>Requests</span>
+      <button class="nav-item" type="button" data-nav="inventory" onclick="navigateTo('inventory')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10"/></svg><span>Inventory</span>
+      </button>
+      <button class="nav-item" type="button" data-nav="reservations" onclick="navigateTo('reservations')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/></svg><span>Reservations</span>
+      </button>
+      <button class="nav-item" type="button" data-nav="orders" onclick="navigateTo('orders')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>Standard &amp; Pre-Orders</span>
       </button>
       <button class="nav-item" type="button" data-nav="stock" onclick="navigateTo('stock')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10"/></svg><span>Stock Allocation</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 12h16M4 17h7"/><circle cx="18" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg><span>Stock Allocation</span>
       </button>
       <button class="nav-item" type="button" data-nav="analytics" onclick="navigateTo('analytics')">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-8M22 20V8M2 20h20"/></svg><span>Analytics</span>
@@ -1482,6 +1508,9 @@ a.nav-item:hover{color:#274ebd}
     </nav>
     <div class="nav-label nav-label-secondary">QUICK ACCESS</div>
     <nav class="side-nav" aria-label="Quick actions">
+      <button class="nav-item" type="button" onclick="openReservation();toggleSidebar(false)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M12 11v6M9 14h6"/></svg><span>Resv Request</span>
+      </button>
       <button class="nav-item" type="button" onclick="openForm();toggleSidebar(false)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New Request</span>
       </button>
@@ -1601,15 +1630,27 @@ a.nav-item:hover{color:#274ebd}
             <div class="note">Top 10 handset models with the highest number of requested units.</div>
           </section>
         </div>
-        <div class="section-heading" id="requestsSection"><div><div class="eyebrow">REQUEST MONITORING</div><h2>All Requests</h2></div>
+        <div class="section-heading" id="inventorySection"><div><div class="eyebrow">ON-HAND STOCK</div><h2>Stock Inventory</h2></div>
+          <span class="heading-helper">Units in the store, by handset and color</span></div>
+        <section class="panel inventory-panel" aria-label="Stock inventory">
+          <div class="inv-summary" id="invSummary"></div>
+          <div class="inv-wrap"><table class="inv-table">
+            <thead><tr><th>Handset</th><th>Color</th><th title="Free to give: Hold Expired + Spare Handsets">Available</th><th title="Held for a customer (For Release)">Reserved</th><th>On hand</th><th title="Customers waiting (Awaiting Unit)">Waiting</th></tr></thead>
+            <tbody id="invBody"></tbody>
+          </table></div>
+          <div class="note">On hand = Available + Reserved. Waiting = customers in Awaiting Unit for that handset and color.</div>
+        </section>
+        <div class="section-heading" id="requestsSection"><div><div class="eyebrow">REQUEST MONITORING</div><h2 id="requestsTitle">All Requests</h2></div>
           <span class="heading-helper">Search, filter and manage handset requests</span></div>
         <section class="panel requests-panel">
           <div class="filters">
             <input id="fl_q" placeholder="Search name, mobile, handset, ID, Waitlist #…" aria-label="Search requests" oninput="setFilter('q',this.value)">
             <select id="fl_category" aria-label="Filter request category" onchange="setFilter('category',this.value)">
               <option value="">All Requests</option>
-              <option value="Standard Request">All Standard Requests</option>
-              <option value="Latest Request">All Latest Requests</option>
+              <option value="Reservation">All Reservations</option>
+              <option value="orders">All Standard &amp; Pre-Orders</option>
+              <option value="Standard Request">Standard Requests</option>
+              <option value="Latest Request">Pre-Order Requests</option>
             </select>
             <select id="fl_status" aria-label="Filter statuses" onchange="setFilter('status',this.value)"></select>
             <select id="fl_seller" aria-label="Filter sellers" onchange="setFilter('seller',this.value)"></select>
@@ -1739,8 +1780,9 @@ a.nav-item:hover{color:#274ebd}
       <div><label for="f_request_category">Request Category <span class="req">*</span></label>
         <select id="f_request_category" required>
           <option value="" disabled selected>Select request category</option>
-          <option value="Standard Request">Standard Request</option>
-          <option value="Latest Request">Latest Request</option>
+          <option value="Reservation">Reservation (unit on hand · 48h hold)</option>
+          <option value="Standard Request">Standard Request (order from warehouse)</option>
+          <option value="Latest Request">Pre-Order Request (latest model)</option>
         </select>
       </div>
       <div class="adminonly"><label>Waitlist #</label><input id="f_wl" placeholder="N/A"><div class="hint">A unique waitlist reference number automatically generated by SAP Fiori.</div></div>
@@ -2324,7 +2366,7 @@ function fill(sel, list, placeholder, allowEmpty, isStatus) {
 
 /* ================= Render ================= */
 function render() {
-  renderKpis(); renderCharts(); renderAvail(); renderTop(); renderTable(); renderLists(); renderUpdates(); saveCache();
+  renderKpis(); renderCharts(); renderAvail(); renderTop(); renderInventory(); renderTable(); renderLists(); renderUpdates(); saveCache();
 }
 
 function formatCount(n) { return Number(n || 0).toLocaleString(); }
@@ -2340,58 +2382,93 @@ const DASH_STATUS_STYLES = {
   'Expired': ['#9869dc','#7647bc','⌛'],
   'Lapsed': ['#9869dc','#7647bc','⌛']
 };
+// 'Latest Request' is stored in the sheet; it is shown as Pre-Order Request.
+const catLabel = c => c === 'Latest Request' ? 'Pre-Order Request' : c;
 function renderKpis() {
-  // Count the two categories separately, regardless of fulfillment status.
-  // Older records without a saved category do not belong to either category.
-  const standard = S.rows.filter(r => r.requestCategory === 'Standard Request');
-  const latest = S.rows.filter(r => r.requestCategory === 'Latest Request');
-// The server counts ONLY requests with Status "Available Units" plus
-// unassigned "Hold Expired" requests; other Inventory stock is not a source.
-const serverAvailable = S.availableUnits && Number.isFinite(Number(S.availableUnits.totalUnits))
-  ? Math.max(0, Number(S.availableUnits.totalUnits)) : 0;
-// Old UI may load before backend deployment; keep a conservative status-only
-// fallback instead of showing the unrelated full Inventory balance.
-const localAvailable = summarizeUnits(S.rows.filter(r =>
-  (isLegacyAvailableStatus(r.status) || isLapsed(r.status)) && !r.reassignedTo));
-const availableCount = S.availableUnits && S.availableUnits.sourceVersion === 'status-only-v3'
-  ? serverAvailable : localAvailable;
-const breakdown = S.availableUnits && S.availableUnits.sourceVersion === 'status-only-v3'
-  ? `Hold Expired: ${formatCount(S.availableUnits.expiredUnits)} · Spare Handsets: ${formatCount(S.availableUnits.spareUnits)}`
-  : 'Hold Expired + Spare Handsets';
-
+  const real = S.rows.filter(r => !r.spare);
+  const cat = c => real.filter(r => r.requestCategory === c);
+  const byStatus = test => real.filter(r => test(r.status));
+  const reservations = cat('Reservation'), preorders = cat('Latest Request'), standard = cat('Standard Request');
+  const fulfilled = byStatus(st => st === 'Fulfilled');
+  const awaiting = byStatus(st => st === 'Awaiting Unit' || st === 'Awaiting Handset');
+  const cancelled = byStatus(st => st === 'Cancelled');
+  const lapsed = byStatus(st => isLapsed(st));
+  const inv = inventoryRows();
+  const onHand = inv.reduce((a, x) => a + x.onHand, 0);
+  const available = inv.reduce((a, x) => a + x.available, 0);
+  const served = Number.isFinite(Number(S.servedAllTime)) ? Number(S.servedAllTime) : fulfilled.length;
+  const units = rows => summarizeUnits(rows) + ' handset units';
   const cards = [
-    { label: 'Total Standard Requests', value: standard.length, subtitle: summarizeUnits(standard) + ' handset units', colors: ['#537af0','#2d50ca'], icon:'▤' },
-    { label: 'Total Latest Requests', value: latest.length, subtitle: summarizeUnits(latest) + ' handset units', colors: ['#18b4ad','#087e9e'], icon:'◎' },
-    // Do not create an extra grey Available Units card from Settings > Statuses.
-    ...S.statuses.filter(status => !isLegacyAvailableStatus(status)).map(status => {
-      const matching = S.rows.filter(r => statusMatches(r, status));
-      return { label:statusLabel(status), value:matching.length, subtitle:summarizeUnits(matching) + ' handset units',
-        colors:DASH_STATUS_STYLES[status] ? DASH_STATUS_STYLES[status].slice(0,2) : ['#7c91ac','#526b92'],
-        icon:DASH_STATUS_STYLES[status] ? DASH_STATUS_STYLES[status][2] : '▣',key:status };
-    }),
-    { label: 'Available Units', value: availableCount, subtitle:breakdown, colors:['#7089ab','#526e94'],icon:'▣' }
+    { label: 'Total Products', value: onHand, subtitle: 'Units on hand in the store', colors: ['#3b4fe0','#2433b0'], icon: '▦', key: 'nav:inventory' },
+    { label: 'Total Reservations', value: reservations.length, subtitle: units(reservations), colors: ['#2fa8f0','#1678c8'], icon: '⊞', key: 'cat:Reservation' },
+    { label: 'Total Pre-Order Requests', value: preorders.length, subtitle: units(preorders), colors: ['#22c4c9','#0b8f9c'], icon: '◎', key: 'cat:Latest Request' },
+    { label: 'Total Standard Requests', value: standard.length, subtitle: units(standard), colors: ['#8b95a8','#5f6a80'], icon: '▤', key: 'cat:Standard Request' },
+    { label: 'Served', value: served, subtitle: 'Customers who got the handset (incl. archive)', colors: ['#8fd13a','#4f9a12'], icon: '★', key: 'status:Fulfilled' },
+    { label: 'Awaiting Units', value: awaiting.length, subtitle: units(awaiting), colors: ['#f6a03a','#dd6f16'], icon: '◷', key: 'status:Awaiting Unit' },
+    { label: 'Fulfilled', value: fulfilled.length, subtitle: units(fulfilled), colors: ['#4cc45a','#1f8f34'], icon: '✓', key: 'status:Fulfilled' },
+    { label: 'Cancelled', value: cancelled.length, subtitle: units(cancelled), colors: ['#f0533e','#c42b1d'], icon: '✕', key: 'status:Cancelled' },
+    { label: 'Lapsed', value: lapsed.length, subtitle: units(lapsed), colors: ['#b07cf0','#7c48c9'], icon: '⌛', key: 'status:' + (S.statuses.find(st => isLapsed(st)) || 'Expired') },
+    { label: 'Available Units', value: available, subtitle: 'Hold Expired + Spare Handsets', colors: ['#f2c230','#d2960c'], icon: '▣', key: 'status:Available Units' }
   ];
   $('kpis').innerHTML = cards.map(k => {
-    const actionable = Object.prototype.hasOwnProperty.call(k,'key');
-    const attr = actionable ? `data-kpi-key="${esc(k.key)}"` : '';
-    const tag = actionable ? 'button type="button"' : 'div';
-    const closingTag = actionable ? 'button' : 'div';
-    return `<${tag} class="kpi ${actionable && S.filter.status === k.key && k.key ? 'active' : ''}"
-      ${attr} style="--tile1:${k.colors[0]};--tile2:${k.colors[1]}">
+    const active = (k.key.indexOf('status:') === 0 && S.filter.status === k.key.slice(7)) ||
+      (k.key.indexOf('cat:') === 0 && S.filter.category === k.key.slice(4));
+    return `<button type="button" class="kpi ${active ? 'active' : ''}" data-kpi-key="${esc(k.key)}"
+      style="--tile1:${k.colors[0]};--tile2:${k.colors[1]}">
       <span class="tile-orb" aria-hidden="true"></span>
       <span class="tile-top"><span class="tile-icon" aria-hidden="true">${esc(k.icon)}</span><span class="tile-number">${formatCount(k.value)}</span></span>
       <span><span class="l" style="display:block">${esc(k.label)}</span><span class="s" style="display:block">${esc(k.subtitle)}</span></span>
-    </${closingTag}>`;
+    </button>`;
   }).join('');
 }
+
+/* ================= Stock Inventory ================= */
+// One line per handset + color: Available (free), Reserved (For Release), Waiting (Awaiting Unit).
+function inventoryRows() {
+  const map = {};
+  const get = (h, c) => {
+    const k = norm(h) + '|' + norm(c);
+    return map[k] || (map[k] = { handset: h, color: c, available: 0, reserved: 0, waiting: 0, onHand: 0 });
+  };
+  const items = (S.availableUnits && S.availableUnits.items) || [];
+  items.forEach(x => { get(x.handset, x.color).available += Number(x.units) || 0; });
+  S.rows.forEach(r => {
+    if (r.spare) return;
+    if (r.status === 'For Release') get(r.handset, r.color).reserved += Number(r.qty) || 1;
+    else if (r.status === 'Awaiting Unit' || r.status === 'Awaiting Handset') get(r.handset, r.color).waiting += Number(r.qty) || 1;
+  });
+  return Object.values(map).map(x => { x.onHand = x.available + x.reserved; return x; })
+    .sort((a, b) => b.onHand - a.onHand || b.waiting - a.waiting || a.handset.localeCompare(b.handset));
+}
+function renderInventory() {
+  if (!$('invBody')) return;
+  const list = inventoryRows();
+  const tot = k => list.reduce((a, x) => a + x[k], 0);
+  $('invSummary').innerHTML = [['On hand', tot('onHand')], ['Available', tot('available')], ['Reserved', tot('reserved')], ['Waiting', tot('waiting')]]
+    .map(([l, v]) => `<div class="inv-stat"><b>${formatCount(v)}</b><span>${l}</span></div>`).join('');
+  $('invBody').innerHTML = list.length ? list.map(x => `<tr>
+      <td>${esc(x.handset)}</td><td>${esc(x.color)}</td>
+      <td class="num ${x.available ? 'ok' : ''}">${x.available}</td><td class="num">${x.reserved}</td>
+      <td class="num"><b>${x.onHand}</b></td><td class="num ${x.waiting && !x.available ? 'warn' : ''}">${x.waiting}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="empty">No units on hand and no customers waiting.</td></tr>';
+}
+
 $('kpis').addEventListener('click', function(e) {
   const btn = e.target.closest('button[data-kpi-key]');
   if (btn) kpiClick(btn.dataset.kpiKey);
 });
 function kpiClick(key) {
-  const v = S.filter.status === key ? '' : key;
+  if (key.indexOf('nav:') === 0) return navigateTo(key.slice(4));
+  if (key.indexOf('cat:') === 0) {
+    const v = S.filter.category === key.slice(4) ? '' : key.slice(4);
+    $('fl_category').value = v; setFilter('category', v);
+    if (v) navigateTo('requests');
+    return;
+  }
+  const st = key.slice(7);
+  const v = S.filter.status === st ? '' : st;
   $('fl_status').value = v;
-  setFilter('status',v);
+  setFilter('status', v);
   if (v) navigateTo('requests');
 }
 function renderCharts() {
@@ -2444,8 +2521,19 @@ function toggleSidebar(force) {
   $('menuToggle').setAttribute('aria-expanded',String(on));
 }
 function navigateTo(area) {
-  const targets={dashboard:'dashboardSection',updates:'updatesSection',requests:'requestsSection',stock:'stockSection',analytics:'analyticsSection'};
+  // Reservations and Standard & Pre-Orders are the request list with a category filter.
+  if (area === 'reservations' || area === 'orders') {
+    const v = area === 'reservations' ? 'Reservation' : 'orders';
+    if ($('fl_category').value !== v) { $('fl_category').value = v; setFilter('category', v); }
+  }
+  const navKey = area;
+  if (area === 'reservations' || area === 'orders') area = 'requests';
+  const targets={dashboard:'dashboardSection',updates:'updatesSection',requests:'requestsSection',stock:'stockSection',analytics:'analyticsSection',inventory:'inventorySection'};
   const section = targets[area] ? area : 'dashboard';
+  const titleEl = $('requestsTitle');
+  if (titleEl) titleEl.textContent = S.filter.category === 'Reservation' ? 'All Reservations'
+    : S.filter.category === 'orders' ? 'All Standard & Pre-Order Requests' : 'All Requests';
+  document.querySelectorAll('.nav-item[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===(targets[navKey] || navKey==='reservations' || navKey==='orders' ? navKey : section)));
   document.querySelectorAll('.nav-item[data-nav]').forEach(btn=>btn.classList.toggle('active',btn.dataset.nav===section));
   if (window.matchMedia('(max-width:700px)').matches) {
     // On a phone, the sections are separate screens rather than one very long page.
@@ -2456,7 +2544,7 @@ function navigateTo(area) {
       if (active) btn.setAttribute('aria-current','page');
       else btn.removeAttribute('aria-current');
     });
-    const names={dashboard:'Dashboard',updates:'Updates',requests:'All Requests',stock:'Stock Allocation',analytics:'Analytics'};
+    const names={dashboard:'Dashboard',updates:'Updates',requests:navKey==='reservations'?'Reservations':navKey==='orders'?'Standard & Pre-Orders':'All Requests',stock:'Stock Allocation',analytics:'Analytics',inventory:'Inventory'};
     const title=document.querySelector('.topbar h1');
     if (title) title.textContent=names[section];
     toggleSidebar(false);
@@ -2505,7 +2593,13 @@ function isAvailableUnitRow(r) {
 function statusMatches(r, st) {
   return norm(st) === 'available units' ? isAvailableUnitRow(r) : sameStatus(r.status, st);
 }
+function syncRequestsTitle() {
+  const t = $('requestsTitle'); if (!t) return;
+  t.textContent = S.filter.category === 'Reservation' ? 'All Reservations'
+    : S.filter.category === 'orders' ? 'All Standard & Pre-Order Requests' : 'All Requests';
+}
 function filtered() {
+  syncRequestsTitle();
   const f = S.filter, q = norm(f.q);
   // Compare normalized ISO date strings, including both ends of the range.
   // A date filter works alongside category, status, seller, type and search.
@@ -2515,7 +2609,7 @@ function filtered() {
     return (!f.status || statusMatches(r, f.status)) &&
       (!f.seller || r.seller === f.seller) &&
       (!f.type || r.type === f.type) &&
-      (!f.category || r.requestCategory === f.category) &&
+      (!f.category || (f.category === 'orders' ? (!r.spare && r.requestCategory !== 'Reservation') : r.requestCategory === f.category)) &&
       (!f.dateFrom || (requestDate && requestDate >= f.dateFrom)) &&
       (!f.dateTo || (requestDate && requestDate <= f.dateTo)) &&
       (!q || norm([r.id, r.first, r.last, r.mobile, r.handset, r.color, r.waitlist, r.remarks].join(' ')).includes(q));
@@ -2554,7 +2648,7 @@ function renderTable() {
       <td>${r.spare ? '—' : `${esc(r.first)} ${esc(r.last)}<span class="small">${esc(r.mobile)}</span>`}</td>
       <td>${esc(r.handset)}<span class="small">${esc(r.color)}</span>${r.remarks ? `<span class="rmk" title="${esc(r.remarks)}">📝 ${esc(r.remarks)}</span>` : ''}</td>
       <td>${unitChips(r.unit) || '<span class="small">—</span>'}</td>
-      <td>${esc(r.type)}${r.requestCategory ? `<span class="small">${esc(r.requestCategory)}</span>` : ''}</td>
+      <td>${esc(r.type)}${r.requestCategory ? `<span class="small">${esc(catLabel(r.requestCategory))}</span>` : ''}</td>
       <td>${esc(r.seller)}</td>
       <td class="wl">${esc(wlText(r.waitlist))}</td>
       <td>${statusCell(r)}<br>${holdChip(r)}</td>
@@ -2575,7 +2669,7 @@ function renderTable() {
         <span class="chip">Unit ID ${unitChips(r.unit) || '<b>—</b>'}</span>
         <span class="chip">WL # <b>${esc(wlText(r.waitlist))}</b></span>
         <span class="chip">${esc(r.type)}</span>
-        ${r.requestCategory ? `<span class="chip">${esc(r.requestCategory)}</span>` : ''}
+        ${r.requestCategory ? `<span class="chip">${esc(catLabel(r.requestCategory))}</span>` : ''}
         <span class="chip">${esc(r.seller)}</span>
       </div>
       ${r.remarks ? `<div style="margin-top:6px;color:var(--muted);font-size:12px">${esc(r.remarks)}</div>` : ''}
@@ -2921,7 +3015,7 @@ function submitForm(e) {
   if (S.admin && !o.id && (S.editSpareKey || isSpareStatus(o.status))) return saveSpareFromForm(o);
   if (!/^\+?\d{10,13}$/.test(o.mobile)) return toast('Mobile # is not valid', true);
   if (!o.type || !o.seller) return toast('Select transaction type and seller', true);
-  if (!['Standard Request', 'Latest Request'].includes(o.requestCategory)) return toast('Select request category', true);
+  if (!['Reservation', 'Standard Request', 'Latest Request'].includes(o.requestCategory)) return toast('Select request category', true);
   const dup = duplicateError(o);
   if (dup) return toast(dup, true);
 
@@ -2942,6 +3036,8 @@ function submitForm(e) {
       closeForm();
       render();
       refreshAvailableUnits();
+      if (saved.warning) toast(saved.warning, true);
+      else if (saved.requestCategory === 'Reservation' && saved.status === 'For Release') toast(`${saved.id} reserved · 48-hour hold started`);
       // Confirmation is already shown during the save flow; avoid a duplicate popup.
     })
     .catch(err => {
@@ -3165,6 +3261,13 @@ function saveSpareFromForm(o) {
     // Load the new spare row(s) into the request list.
     if (tokenValid() && !S.fetching) { S.fetching = true; api('init').then(d => init(d)).catch(() => {}).finally(() => { S.fetching = false; }); }
   }).catch(err => setRequestSaving(false, 'Save not confirmed: ' + err.message, true));
+}
+
+/* ================= Reservation (unit on hand, 48-hour hold) ================= */
+function openReservation() {
+  openForm();
+  $('f_request_category').value = 'Reservation';
+  $('formTitle').textContent = 'New Reservation';
 }
 
 /* ================= Unit history ================= */
