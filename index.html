@@ -1489,7 +1489,7 @@ a.nav-item:hover{color:#274ebd}
   .oh-cards{display:flex;flex-direction:column;gap:10px;margin-top:12px}
   .oh-card{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
   .oh-card .nm{font-weight:800}
-  .inventory-panel .inv-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .inventory-panel .inv-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
   .oh-card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
   .oh-card-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:8px;font-size:13px}
   .oh-card-row>span:first-child{color:var(--muted);font-weight:700}
@@ -1574,8 +1574,8 @@ body.chat-open .chat-fab{display:none}
 }
 /* Stock Inventory */
 .inventory-panel{margin-bottom:20px}
-.inv-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
-@media (max-width:1100px){.inv-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.inv-summary{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media (max-width:1100px){.inv-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .inv-stat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .inv-stat b{font-size:22px;font-variant-numeric:tabular-nums}
 .inv-stat span{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
@@ -2697,11 +2697,12 @@ function renderOnHand() {
     ['In Stock', all.filter(x => x.qty > 0).length, '✓', '#2fbf71', '#13894b', ['status', 'In Stock']],
     ['Out of Stock', all.filter(x => !x.qty).length, '✕', '#f0533e', '#c42b1d', ['status', 'Out of Stock']],
     ['Reserved', open.length - lapsed.length, '⊞', '#22a7e8', '#0d76b8', ['to', '__any']],
-    ['Lapsed', lapsed.length, '⌛', '#b07cf0', '#7c48c9', ['to', '__any']]
+    ['Lapsed', lapsed.length, '⌛', '#b07cf0', '#7c48c9', ['to', '__any']],
+    ['Sold', resvList().filter(r => r.status === 'Sold').length, '★', '#f2b01e', '#d07a08', ['history', '']]
   ];
   $('ohSummary').innerHTML = tiles.map(([l, v, ic, c1, c2, f]) => {
     const on = f && S.oh[f[0]] === f[1];
-    return `<button type="button" class="inv-stat inv-tile${on ? ' on' : ''}" style="--t1:${c1};--t2:${c2}" ${f ? `onclick="ohTile('${f[0]}','${f[1]}')"` : 'tabindex="-1"'}>
+    return `<button type="button" class="inv-stat inv-tile${on ? ' on' : ''}" style="--t1:${c1};--t2:${c2}" ${f ? (f[0] === 'history' ? 'onclick="openResvHistory()" title="Open Reservation history"' : `onclick="ohTile('${f[0]}','${f[1]}')"`) : 'tabindex="-1"'}>
       <span class="inv-ic" aria-hidden="true">${ic}</span><b>${formatCount(v)}</b><span>${l}</span></button>`;
   }).join('');
   const cols = [['matcode', 'Matcode'], ['desc', 'Item Desc'], ['type', 'Type'], ['qty', 'Qty'], ['status', 'Status'], ['resvDate', 'Resv Date'], ['reservedTo', 'Reserved To']];
