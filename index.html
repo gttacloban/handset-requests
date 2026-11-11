@@ -2025,12 +2025,13 @@ body.chat-open .chat-fab{display:none}
   <header class="chat-head">
     <button type="button" class="chat-ico" id="chatBack" hidden onclick="openThread('')" aria-label="Back to chats">‹</button>
     <div class="chat-title"><b id="chatTitle">Chat</b><span id="chatSub"></span></div>
+    <button type="button" class="chat-ico" id="chatSoundBtn" onclick="toggleChatSound()" aria-label="Message sound on" title="Message sound on">🔔</button>
     <button type="button" class="chat-ico" onclick="toggleChat(false)" aria-label="Close chat">✕</button>
   </header>
   <div class="chat-body" id="chatBody"></div>
   <form class="chat-input" id="chatForm" onsubmit="sendChat(event)">
     <textarea id="chatText" rows="1" maxlength="1000" placeholder="Type a message…" aria-label="Message"></textarea>
-    <button type="submit" class="chat-send" aria-label="Send">➤</button>
+    <button type="submit" class="chat-send" aria-label="Send" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" ontouchstart="">➤</button>
   </form>
 </aside>
 
@@ -3820,6 +3821,50 @@ function archiveNow() {
     .finally(() => { btn.disabled = false; btn.textContent = 'Archive now'; });
 }
 
+/* ================= Chat sound ================= */
+// A short two-note "ding" made in the browser (no sound file). Phones also vibrate.
+let chatAudio = null;
+let chatSoundOn = true;
+try { chatSoundOn = localStorage.getItem('hpr_chat_sound') !== 'off'; } catch (e) {}
+function unlockChatAudio() {
+  try {
+    if (!chatAudio) chatAudio = new (window.AudioContext || window.webkitAudioContext)();
+    if (chatAudio.state === 'suspended') chatAudio.resume();
+  } catch (e) {}
+}
+// Browsers allow sound only after the user has touched the page once.
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, unlockChatAudio, { passive: true }));
+function playChatSound() {
+  if (!chatSoundOn) return;
+  try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch (e) {}
+  try {
+    unlockChatAudio();
+    if (!chatAudio) return;
+    const t0 = chatAudio.currentTime + 0.01;
+    [[880, 0], [1320, 0.12]].forEach(([freq, delay]) => {
+      const osc = chatAudio.createOscillator(), gain = chatAudio.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + delay);
+      gain.gain.exponentialRampToValueAtTime(0.25, t0 + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.35);
+      osc.connect(gain); gain.connect(chatAudio.destination);
+      osc.start(t0 + delay); osc.stop(t0 + delay + 0.4);
+    });
+  } catch (e) {}
+}
+function showChatSoundBtn() {
+  const b = $('chatSoundBtn'); if (!b) return;
+  b.textContent = chatSoundOn ? '🔔' : '🔕';
+  b.title = b.ariaLabel = chatSoundOn ? 'Message sound on' : 'Message sound off';
+}
+function toggleChatSound() {
+  chatSoundOn = !chatSoundOn;
+  try { localStorage.setItem('hpr_chat_sound', chatSoundOn ? 'on' : 'off'); } catch (e) {}
+  showChatSoundBtn();
+  if (chatSoundOn) playChatSound();
+  toast(chatSoundOn ? 'Message sound on' : 'Message sound off');
+}
+
 /* ================= Chat: Seller <-> Admin ================= */
 S.chat = S.chat || { rev: '0', messages: [] };
 S.chatThread = '';
@@ -3909,7 +3954,7 @@ function toggleChat(open) {
   $('chatPanel').hidden = !open;
   document.body.classList.toggle('chat-open', !!open);
   fitChat();
-  if (open) { S.chatScroll = true; renderChat(); chatFast(); if (!$('chatForm').hidden) setTimeout(() => $('chatText').focus(), 50); }
+  if (open) { showChatSoundBtn(); S.chatScroll = true; renderChat(); chatFast(); if (!$('chatForm').hidden) setTimeout(() => $('chatText').focus(), 50); }
   else chatBadge();
 }
 function openThread(email) { S.chatThread = email; S.chatScroll = true; renderChat(); if (email) setTimeout(() => $('chatText').focus(), 50); }
@@ -3932,6 +3977,7 @@ function sendChat(e) {
     role: S.admin ? 'Admin' : 'Seller', text: text, pending: true, readByAdmin: S.admin ? Date.now() : 0, readBySeller: S.admin ? 0 : Date.now() };
   S.chat.messages = chatMsgs().concat([tmp]);
   $('chatText').value = ''; $('chatText').style.height = '';
+  $('chatText').focus();   // keep the keyboard open for the next message
   S.chatScroll = true; renderChat();
   api('chatSend', { text: text, thread: thread }).then(m => {
     S.chat.messages = chatMsgs().map(x => x.id === tmp.id ? m : x); renderChat();
@@ -3962,6 +4008,7 @@ function chatSync() {
       renderChat();
       const viewing = !$('chatPanel').hidden && (S.admin ? S.chatThread : myEmail());
       fresh.filter(m => m.thread !== viewing).slice(-1).forEach(m => toast(`💬 New message from ${m.name}`));
+      if (fresh.length) playChatSound();
     }).finally(() => { S.chatFetching = false; });
   }).catch(() => {});
 }
@@ -3979,8 +4026,10 @@ function chatFast() {
     S.chat = { rev: res.rev, messages: (res.messages || []).concat(pending) };
     renderChat();
     const viewing = S.admin ? S.chatThread : myEmail();
-    (res.messages || []).filter(m => !before.has(m.id) && isUnread(m) && m.thread !== viewing).slice(-1)
-      .forEach(m => toast(`💬 New message from ${m.name}`));
+    const incoming = (res.messages || []).filter(m => !before.has(m.id) && m.from !== myEmail() &&
+      (S.admin ? m.role === 'Seller' : m.role === 'Admin'));
+    incoming.filter(m => m.thread !== viewing).slice(-1).forEach(m => toast(`💬 New message from ${m.name}`));
+    if (incoming.length) playChatSound();
   }).catch(() => {}).finally(() => { S.chatFetching = false; });
 }
 setInterval(chatFast, 1500);
