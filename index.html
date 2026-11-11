@@ -148,12 +148,12 @@ label .req{color:var(--ca)}
 @media(max-width:480px){.ulog li{grid-template-columns:1fr;gap:2px}}
 .top li.tbar-row{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:12px}
 .tbar-rank{font-size:20px;font-weight:800;opacity:.9;text-align:center;font-variant-numeric:tabular-nums}
-.tbar-body{min-width:0;display:flex;flex-direction:column;gap:5px}
-.tbar-name{font-weight:700;line-height:1.25;overflow-wrap:anywhere}
-.tbar-line{display:flex;align-items:center;gap:12px}
-.tbar-track{flex:1;display:block;height:8px;border-radius:999px;background:rgba(127,150,200,.18);overflow:hidden}
+.tbar-body{min-width:0;display:flex;flex-direction:column;gap:4px}
+.tbar-line{display:grid;grid-template-columns:minmax(0,auto) minmax(60px,1fr) 46px;align-items:center;gap:12px}
+.tbar-name{font-weight:700;line-height:1.25;overflow-wrap:anywhere;max-width:22ch}
+.tbar-track{display:block;height:8px;border-radius:999px;background:rgba(127,150,200,.14);overflow:hidden}
 .tbar-fill{display:block;height:100%;border-radius:999px}
-.tbar-num{min-width:28px;text-align:right;font-weight:800;font-size:17px;font-variant-numeric:tabular-nums}
+.tbar-num{text-align:right;font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
 .tbar-sub{display:block;color:var(--muted);font-size:12.5px;font-weight:500}
 .sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
@@ -1693,9 +1693,9 @@ a.nav-item:hover{color:#274ebd}
             <div class="note">Hold Expired + Spare Handsets</div>
           </section>
           <section class="panel insight-panel">
-            <div class="panel-heading"><h3>Top 10 Most Requested Handsets</h3><span class="section-icon">↗</span></div>
+            <div class="panel-heading"><h3>Inventory Stock Ranking</h3><span class="section-icon">↗</span></div>
             <ul class="top" id="top"></ul>
-            <div class="note">Top 10 handset models with the highest number of requested units.</div>
+            <div class="note">Top 10 products in On-Hand Stock by units available. % is compared with the product that has the most units.</div>
           </section>
         </div>
         <div class="section-heading" id="inventorySection"><div><div class="eyebrow">ON-HAND STOCK</div><h2>Inventory &amp; Reservations</h2></div>
@@ -2675,6 +2675,7 @@ function renderOnHand() {
   $('ohPageInd').textContent = `Page ${S.oh.page} of ${pages}`;
   $('ohPrev').disabled = S.oh.page <= 1;
   $('ohNext').disabled = S.oh.page >= pages;
+  renderTop();   // Inventory Stock Ranking follows the stock
 }
 // keep the timers moving
 setInterval(() => { if (S.loaded && !document.hidden && resvList().some(r => r.holdUntil && isOpenResv(r))) renderOnHand(); }, 30000);
@@ -2939,30 +2940,24 @@ function navigateTo(area) {
 })();
 
 function renderTop() {
-  const map = {};
-  S.rows.filter(r => !CLOSED.includes(r.status) && !r.spare && norm(r.status) !== 'available units').forEach(r => {
-    const k = norm(r.handset) + '|' + norm(r.color);
-    if (!map[k]) map[k] = { name: r.handset, color: r.color, units: 0, req: 0 };
-    map[k].units += Number(r.qty) || 0; map[k].req++;
-  });
-  const list = Object.values(map).sort((a, b) => b.units - a.units).slice(0, 10);
-  // Bar length and % are relative to the most requested handset (= 100%).
-  const max = list.length ? list[0].units || 1 : 1;
-  // A different color for each position.
-  const BAR = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#ef4444', '#a3a3a3'];
+  // Inventory Stock Ranking: On-Hand Stock products with the most units available.
+  const list = (S.onHand || []).filter(x => Number(x.qty) > 0)
+    .slice().sort((a, b) => b.qty - a.qty || a.desc.localeCompare(b.desc)).slice(0, 10);
+  const max = list.length ? list[0].qty : 1;
+  const BAR = ['#22c55e', '#f5b70a', '#ef4444', '#ec4899', '#7c3aed', '#3b82f6', '#14b8a6', '#f97316', '#06b6d4', '#a3a3a3'];
   $('top').innerHTML = list.length ? list.map((x, i) => {
-    const pct = Math.round(x.units / max * 100);
+    const pct = Math.round(x.qty / max * 100);
     const c = BAR[i % BAR.length];
-    return `<li class="tbar-row" title="${esc(x.name)} · ${esc(x.color)} · ${x.units} unit(s) requested · ${pct}% of the top handset">
+    return `<li class="tbar-row" title="${esc(x.desc)} · ${esc(x.matcode)} · ${x.qty} unit(s) available">
       <span class="tbar-rank">${i + 1}</span>
       <span class="tbar-body">
-        <span class="tbar-name">${esc(x.name)}</span>
-        <span class="tbar-line"><span class="tbar-track" aria-hidden="true"><span class="tbar-fill" style="width:${Math.max(3, pct)}%;background:${c}"></span></span>
-          <span class="tbar-num" style="color:${c}">${x.units}</span></span>
-        <span class="tbar-sub">${esc(x.color)} · ${x.req} ${x.req === 1 ? 'request' : 'requests'}</span>
+        <span class="tbar-line"><span class="tbar-name">${esc(x.desc)}</span>
+          <span class="tbar-track" aria-hidden="true"><span class="tbar-fill" style="width:${Math.max(3, pct)}%;background:${c}"></span></span>
+          <span class="tbar-num">${pct}%</span></span>
+        <span class="tbar-sub">${x.qty} ${x.qty === 1 ? 'unit' : 'units'} available</span>
       </span></li>`;
   }).join('')
-    : '<li style="color:var(--muted)">No open requests</li>';
+    : '<li style="color:var(--muted)">No units in On-Hand Stock yet</li>';
 }
 
 /* A row is in Available Units when its unit is free: a spare handset, or a
