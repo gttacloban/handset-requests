@@ -1462,6 +1462,7 @@ a.nav-item:hover{color:#274ebd}
 .oh-table{width:100%;border-collapse:collapse;font-size:13px}
 .oh-table th,.oh-table td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:normal}
 .oh-table td.empty{text-align:center;color:var(--muted);padding:22px}
+.oh-table td:nth-child(6){white-space:nowrap}
 .oh-table tr.pending{opacity:.6}
 .oh-sort{background:none;border:0;padding:0;font:inherit;font-weight:800;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:inherit;cursor:pointer}
 .oh-sort.on{color:var(--accent)}
@@ -1493,6 +1494,22 @@ a.nav-item:hover{color:#274ebd}
   .oh-card-row>span:first-child{color:var(--muted);font-weight:700}
   .oh-card-act{justify-content:flex-end}
 }
+.oh-reserve{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.oh-reserve:hover{background:var(--accent);color:#fff}
+.rv-list{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.rv-count{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.rv-chip{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;padding:4px 6px 4px 10px;border-radius:10px;font-size:12px;border:1px solid transparent}
+.rv-chip.live{background:rgba(59,130,246,.13);border-color:rgba(59,130,246,.35)}
+.rv-chip.lapsed{background:rgba(176,124,240,.15);border-color:rgba(176,124,240,.45)}
+.rv-chip.idle{background:rgba(127,140,170,.13);border-color:rgba(127,140,170,.35)}
+.rv-chip.pending{opacity:.6}
+.rv-meta{font-weight:700;opacity:.85;white-space:nowrap}
+.rv-chip.lapsed .rv-meta{color:#9d63e8}
+.rv-chip.live .rv-meta{color:#3b82f6}
+.rv-btns{display:inline-flex;gap:2px}
+.rv-btns button{width:24px;height:24px;border-radius:6px;border:0;background:rgba(127,140,170,.18);color:inherit;font-size:12px;cursor:pointer}
+.rv-btns button:hover{background:rgba(127,140,170,.35)}
+@media (max-width:700px){ .oh-card-rv{align-items:flex-start} }
 /* Stock Inventory */
 .inventory-panel{margin-bottom:20px}
 .inv-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
@@ -1685,7 +1702,8 @@ a.nav-item:hover{color:#274ebd}
               <label class="date-field" for="oh_from"><span>From Date</span><input type="date" id="oh_from" onchange="setOh('from',this.value)"></label>
               <label class="date-field" for="oh_to_date"><span>To Date</span><input type="date" id="oh_to_date" onchange="setOh('toDate',this.value)"></label>
               <button type="button" class="date-clear" onclick="clearOhDates()">Clear Dates</button>
-              <button type="button" class="date-clear oh-add" id="ohAddBtn" hidden onclick="openStockForm()">+ Add New Product</button>
+              <button type="button" class="date-clear oh-add" onclick="openResvHistory()">🕘 Reservation history</button>
+              <button type="button" class="date-clear" id="ohAddBtn" hidden onclick="openStockForm()">+ Add New Product</button>
             </div>
           </div>
           <div class="oh-wrap"><table class="oh-table">
@@ -1894,13 +1912,33 @@ a.nav-item:hover{color:#274ebd}
       <div><label for="st_type">Type <span class="req">*</span></label><select id="st_type" required></select></div>
       <div class="full"><label for="st_desc">Item Desc <span class="req">*</span></label><input id="st_desc" list="st_descs" placeholder="e.g. iPhone 17 Pro Max 256 Silver" required autocomplete="off"><datalist id="st_descs"></datalist></div>
       <div><label for="st_qty">Qty <span class="req">*</span></label><input id="st_qty" type="number" min="0" step="1" value="0" required inputmode="numeric"></div>
-      <div class="st-resv"><label for="st_to">Reserved To</label><select id="st_to"></select></div>
-      <div class="st-resv"><label for="st_date">Resv Date</label><input id="st_date" type="date"></div>
-      <div class="full st-resv" id="st_release_wrap" style="display:none"><label for="st_release">Reservation cleared because <span class="req">*</span></label>
-        <select id="st_release"><option value="" disabled selected>Choose…</option><option value="sold">Sold / collected (Qty stays)</option><option value="return">Cancelled (return 1 unit to Qty)</option></select></div>
-      <div class="full st-resv"><div class="sellernote" id="st_note">Choosing a seller in Reserved To takes 1 unit off Qty automatically. Then press ⏱ on the row to start the 48-hour timer.</div></div>
+      <div class="full"><div class="sellernote">Qty = units free in the store. Use + / − on the row when stock arrives or is sold. Reservations are added with the Reserve button on the row.</div></div>
       <div class="full actions"><button type="button" class="btn btn-light" onclick="closeStockForm()">Cancel</button><button type="submit" class="btn btn-primary" id="stSave">Save</button></div>
     </form>
+  </div>
+</div>
+
+<div class="modal" id="resvModal" style="z-index:80" onclick="if(event.target===this)closeResvForm()">
+  <div class="box">
+    <h2>Reserve a unit</h2>
+    <div class="note" id="rvProduct"></div>
+    <form class="fgrid" id="resvForm" onsubmit="saveResv(event)" style="margin-top:10px">
+      <input type="hidden" id="rv_pid">
+      <div><label for="rv_seller">Reserved To <span class="req">*</span></label><select id="rv_seller" required></select></div>
+      <div><label for="rv_date">Resv Date <span class="req">*</span></label><input id="rv_date" type="date" required></div>
+      <div class="full"><div class="sellernote">The reservation is saved as <b>Not started</b>. Press ⏱ on it to start the 48-hour timer: that takes 1 unit off Qty.</div></div>
+      <div class="full actions"><button type="button" class="btn btn-light" onclick="closeResvForm()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="resvHistModal" style="z-index:80" onclick="if(event.target===this)closeResvHistory()">
+  <div class="box">
+    <h2>Reservation history</h2>
+    <div class="fgrid"><div class="full"><label for="rh_seller">Seller</label><select id="rh_seller" onchange="drawResvHistory()"></select></div></div>
+    <div class="note" id="rhSub"></div>
+    <ul class="ulog" id="rhList"></ul>
+    <div class="actions"><button type="button" class="btn btn-light" onclick="closeResvHistory()">Close</button></div>
   </div>
 </div>
 
@@ -2310,7 +2348,7 @@ function saveCache() {
   if (!S.loaded || !S.user) return;
   try {
     localStorage.setItem('hpo_cache_' + S.user.email, JSON.stringify({ user: S.user, sellers: S.sellers, types: S.types, statuses: S.statuses, users: S.users, rows: S.rows.filter(r => !r.pending), hiddenColors: S.colorSyncReady ? S.hiddenColors : undefined, updates: S.updates, inventory: S.inventory, availableUnits: S.availableUnits,
-      unitLog: (S.unitLog || []).slice(-1500), onHand: S.onHand, stockTypes: S.stockTypes, loginLog: S.admin ? (S.loginLog || []).slice(0, 500) : undefined }));
+      unitLog: (S.unitLog || []).slice(-1500), onHand: S.onHand, stockTypes: S.stockTypes, reservations: S.reservations, loginLog: S.admin ? (S.loginLog || []).slice(0, 500) : undefined }));
     localStorage.setItem('hpo_last', S.user.email);
   } catch (e) {}
 }
@@ -2463,7 +2501,7 @@ function renderKpis() {
   const byStatus = test => real.filter(r => test(r.status));
   const preorders = cat('Latest Request'), standard = cat('Standard Request');
   const stockRows = S.onHand || [];
-  const stockReserved = stockRows.filter(x => x.reservedTo);
+  const stockReserved = (S.reservations || []).filter(r => ['Pending', 'Active', 'Lapsed'].includes(r.status));
   const fulfilled = byStatus(st => st === 'Fulfilled');
   const awaiting = byStatus(st => st === 'Awaiting Unit' || st === 'Awaiting Handset');
   const cancelled = byStatus(st => st === 'Cancelled');
@@ -2474,7 +2512,7 @@ function renderKpis() {
   const units = rows => summarizeUnits(rows) + ' handset units';
   const cards = [
     { label: 'Total Products', value: onHand, subtitle: `${stockRows.length} product(s) in On-Hand Stock`, colors: ['#3b4fe0','#2433b0'], icon: '▦', key: 'nav:inventory' },
-    { label: 'Total Reservations', value: stockReserved.length, subtitle: 'Reserved in On-Hand Stock', colors: ['#2fa8f0','#1678c8'], icon: '⊞', key: 'nav:reservations' },
+    { label: 'Total Reservations', value: stockReserved.length, subtitle: 'Open reservations (On-Hand Stock)', colors: ['#2fa8f0','#1678c8'], icon: '⊞', key: 'nav:reservations' },
     { label: 'Total Pre-Order Requests', value: preorders.length, subtitle: units(preorders), colors: ['#22c4c9','#0b8f9c'], icon: '◎', key: 'cat:Latest Request' },
     { label: 'Total Standard Requests', value: standard.length, subtitle: units(standard), colors: ['#8b95a8','#5f6a80'], icon: '▤', key: 'cat:Standard Request' },
     { label: 'Served', value: served, subtitle: 'Customers who got the handset (incl. archive)', colors: ['#8fd13a','#4f9a12'], icon: '★', key: 'status:Fulfilled' },
@@ -2500,12 +2538,19 @@ function renderKpis() {
 const STOCK_TYPES_DEFAULT = ['iPhone', 'Honor', 'Samsung', 'Huawei', 'Oppo', 'Infinix', 'Vivo', 'Xiaomi', 'Realme', 'Modem Kit'];
 S.oh = S.oh || { q: '', type: '', status: '', to: '', from: '', toDate: '', sort: 'desc', dir: 1 };
 const ohList = () => S.onHand || [];
+const resvList = () => S.reservations || [];
 const stockTypes = () => (S.stockTypes && S.stockTypes.length ? S.stockTypes : STOCK_TYPES_DEFAULT);
-function holdText(x) {
-  if (!x.reservedTo) return '';
-  if (!x.holdUntil) return 'Not started';
-  const ms = x.holdUntil - Date.now();
-  if (ms <= 0) return 'Lapsed';
+// Lapsed is worked out live: an Active reservation whose 48 hours are over (it stays reserved).
+const resvState = r => (r.status === 'Active' || r.status === 'Lapsed') && r.holdUntil && r.holdUntil <= Date.now() ? 'Lapsed'
+  : r.status === 'Lapsed' ? 'Active' : r.status;
+const isOpenResv = r => ['Pending', 'Active', 'Lapsed'].includes(resvState(r));
+const openResvOf = pid => resvList().filter(r => r.productId === pid && isOpenResv(r));
+function resvTimerText(r) {
+  const st = resvState(r);
+  if (st === 'Pending') return 'Not started';
+  if (st === 'Lapsed') return 'Lapsed';
+  if (!r.holdUntil) return 'Reserved';
+  const ms = r.holdUntil - Date.now();
   const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
   return `${h}h ${String(m).padStart(2, '0')}m left`;
 }
@@ -2514,24 +2559,32 @@ function clearOhDates() { S.oh.from = S.oh.toDate = ''; $('oh_from').value = $('
 function sortOh(key) { S.oh.dir = S.oh.sort === key ? -S.oh.dir : 1; S.oh.sort = key; renderOnHand(); }
 function ohFiltered() {
   const f = S.oh, q = norm(f.q);
-  const list = ohList().filter(x =>
+  const list = ohList().map(x => Object.assign({}, x, { _resv: openResvOf(x.id) })).filter(x =>
     (!q || norm(x.matcode + ' ' + x.desc).includes(q)) &&
     (!f.type || x.type === f.type) &&
     (!f.status || x.status === f.status) &&
-    (!f.to || (f.to === '__any' ? !!x.reservedTo : f.to === '__none' ? !x.reservedTo : x.reservedTo === f.to)) &&
-    (!f.from || (x.resvDate && x.resvDate >= f.from)) &&
-    (!f.toDate || (x.resvDate && x.resvDate <= f.toDate)));
+    (!f.to || (f.to === '__any' ? x._resv.length > 0 : f.to === '__none' ? !x._resv.length : x._resv.some(r => r.seller === f.to))) &&
+    ((!f.from && !f.toDate) || x._resv.some(r => (!f.from || r.resvDate >= f.from) && (!f.toDate || r.resvDate <= f.toDate))));
   const k = f.sort, d = f.dir;
+  const val = x => k === 'reservedTo' ? x._resv.map(r => r.seller).sort().join(',') : k === 'resvDate' ? (x._resv.map(r => r.resvDate).sort()[0] || '') : x[k];
   return list.sort((a, b) => {
-    const va = a[k], vb = b[k];
+    const va = val(a), vb = val(b);
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * d;
     return String(va || '').localeCompare(String(vb || ''), undefined, { numeric: true }) * d || a.desc.localeCompare(b.desc);
   });
 }
+function resvChip(r) {
+  const st = resvState(r);
+  const cls = st === 'Lapsed' ? 'lapsed' : st === 'Pending' ? 'idle' : 'live';
+  const btns = S.admin ? `<span class="rv-btns">
+      <button type="button" title="${st === 'Pending' ? 'Start the 48-hour timer (takes 1 unit off Qty)' : 'Restart the 48 hours'}" onclick="resvDo('${esc(r.id)}','timer')">⏱</button>
+      <button type="button" title="Sold: the customer took the unit" onclick="resvDo('${esc(r.id)}','sold')">✓</button>
+      <button type="button" title="Cancel${r.taken ? ': 1 unit goes back to Qty' : ''}" onclick="resvDo('${esc(r.id)}','cancel')">✕</button></span>` : '';
+  return `<span class="rv-chip ${cls}${r.pending ? ' pending' : ''}"><b>${esc(r.seller)}</b><span class="rv-meta">${esc(r.resvDate || '')} · ⏱ ${esc(resvTimerText(r))}</span>${btns}</span>`;
+}
 function renderOnHand() {
   if (!$('ohBody')) return;
   const all = ohList();
-  // filter lists (keep the current choice)
   const keep = (el, html, v) => { el.innerHTML = html; el.value = v; };
   keep($('oh_type'), '<option value="">All Type</option>' + stockTypes().map(t => `<option>${esc(t)}</option>`).join(''), S.oh.type);
   const sellers = (S.sellers || []).slice().sort((a, b) => a.localeCompare(b));
@@ -2539,45 +2592,40 @@ function renderOnHand() {
     sellers.map(n => `<option>${esc(n)}</option>`).join(''), S.oh.to);
   $('ohAddBtn').hidden = !S.admin;
   const total = all.reduce((a, x) => a + x.qty, 0);
-  const reserved = all.filter(x => x.reservedTo);
-  const lapsed = reserved.filter(x => x.holdUntil && x.holdUntil <= Date.now());
-  $('ohSummary').innerHTML = [['Total units', total], ['Products', all.length], ['In Stock', all.filter(x => x.qty > 0).length], ['Out of Stock', all.filter(x => !x.qty).length], ['Reserved', reserved.length - lapsed.length], ['Lapsed', lapsed.length]]
+  const open = resvList().filter(isOpenResv);
+  const lapsed = open.filter(r => resvState(r) === 'Lapsed');
+  $('ohSummary').innerHTML = [['Total units', total], ['Products', all.length], ['In Stock', all.filter(x => x.qty > 0).length], ['Out of Stock', all.filter(x => !x.qty).length], ['Reserved', open.length - lapsed.length], ['Lapsed', lapsed.length]]
     .map(([l, v]) => `<div class="inv-stat"><b>${formatCount(v)}</b><span>${l}</span></div>`).join('');
   const cols = [['matcode', 'Matcode'], ['desc', 'Item Desc'], ['type', 'Type'], ['qty', 'Qty'], ['status', 'Status'], ['resvDate', 'Resv Date'], ['reservedTo', 'Reserved To']];
   $('ohHead').innerHTML = cols.map(([k, l]) => `<th><button type="button" class="oh-sort ${S.oh.sort === k ? 'on' : ''}" onclick="sortOh('${k}')">${l}${S.oh.sort === k ? (S.oh.dir > 0 ? ' ▲' : ' ▼') : ''}</button></th>`).join('') + '<th>Action</th>';
   const list = ohFiltered();
-  const timer = x => {
-    const t = holdText(x);
-    if (!t) return '';
-    const cls = t === 'Lapsed' ? 'lapsed' : t === 'Not started' ? 'idle' : 'live';
-    return `<span class="oh-timer ${cls}">⏱ ${esc(t)}</span>`;
-  };
   const qtyCell = x => S.admin
-    ? `<span class="oh-qty"><button type="button" class="oh-step" title="Minus 1 (reserved or sold)" onclick="stockQty('${esc(x.id)}',-1)" ${x.qty ? '' : 'disabled'}>−</button><b>${x.qty}</b><button type="button" class="oh-step" title="Add 1 (received)" onclick="stockQty('${esc(x.id)}',1)">+</button></span>`
+    ? `<span class="oh-qty"><button type="button" class="oh-step" title="Minus 1 (sold)" onclick="stockQty('${esc(x.id)}',-1)" ${x.qty ? '' : 'disabled'}>−</button><b>${x.qty}</b><button type="button" class="oh-step" title="Add 1 (received)" onclick="stockQty('${esc(x.id)}',1)">+</button></span>`
     : `<b>${x.qty}</b>`;
   const actions = x => S.admin ? `<span class="oh-actions">
-      <button class="icon" title="${x.reservedTo ? 'Start the 48-hour timer' : 'Choose Reserved To first (Edit)'}" onclick="stockHold('${esc(x.id)}')" ${x.reservedTo ? '' : 'disabled'}>⏱</button>
+      <button type="button" class="oh-reserve" title="Reserve a unit for a seller" onclick="openResvForm('${esc(x.id)}')">Reserve</button>
       <button class="icon" title="Edit" onclick="openStockForm('${esc(x.id)}')">✎</button>
       <button class="icon" title="Delete" onclick="stockDelete('${esc(x.id)}')">🗑</button></span>` : '';
   const st = x => `<span class="oh-st ${x.qty ? 'in' : 'out'}">${x.status}</span>`;
+  const dates = x => [...new Set(x._resv.map(r => r.resvDate).filter(Boolean))].sort().join('<br>') || '—';
+  const chips = x => x._resv.length ? `<div class="rv-list"><span class="rv-count">Reserved: ${x._resv.length}</span>${x._resv.map(resvChip).join('')}</div>` : '—';
   $('ohBody').innerHTML = list.length ? list.map(x => `<tr${x.pending ? ' class="pending"' : ''}>
       <td class="mono">${esc(x.matcode)}</td><td>${esc(x.desc)}</td><td>${esc(x.type)}</td>
-      <td>${qtyCell(x)}</td><td>${st(x)}</td><td>${esc(x.resvDate || '—')}</td>
-      <td>${x.reservedTo ? `<b>${esc(x.reservedTo)}</b>` : '—'}${timer(x) ? '<br>' + timer(x) : ''}</td>
+      <td>${qtyCell(x)}</td><td>${st(x)}</td><td>${dates(x)}</td><td>${chips(x)}</td>
       <td>${actions(x)}</td></tr>`).join('')
     : `<tr><td colspan="8" class="empty">${all.length ? 'No products match the filters.' : (S.admin ? 'No products yet. Press + Add New Product.' : 'No products in stock yet.')}</td></tr>`;
   $('ohCards').innerHTML = list.map(x => `<div class="card oh-card">
       <div class="top"><div><div class="nm">${esc(x.desc)}</div><div class="small mono">${esc(x.matcode)} · ${esc(x.type)}</div></div>${st(x)}</div>
       <div class="oh-card-row"><span>Qty</span>${qtyCell(x)}</div>
-      ${x.reservedTo ? `<div class="oh-card-row"><span>Reserved To</span><b>${esc(x.reservedTo)}</b></div>
-      <div class="oh-card-row"><span>Resv Date</span>${esc(x.resvDate || '—')}</div><div class="oh-card-row"><span>Timer</span>${timer(x)}</div>` : ''}
+      ${x._resv.length ? `<div class="oh-card-row oh-card-rv"><span>Reserved To</span>${chips(x)}</div>` : ''}
       ${S.admin ? `<div class="oh-card-row oh-card-act">${actions(x)}</div>` : ''}</div>`).join('') ||
       `<div class="note">${all.length ? 'No products match the filters.' : 'No products yet.'}</div>`;
   $('ohCount').textContent = `Showing ${list.length} of ${all.length} product(s) · Status is automatic: Qty 0 = Out of Stock.`;
 }
 // keep the timers moving
-setInterval(() => { if (S.loaded && !document.hidden && ohList().some(x => x.holdUntil)) renderOnHand(); }, 30000);
+setInterval(() => { if (S.loaded && !document.hidden && resvList().some(r => r.holdUntil && isOpenResv(r))) renderOnHand(); }, 30000);
 
+/* ----- Products (Admin) ----- */
 function openStockForm(id) {
   if (!S.admin) return;
   const x = id ? ohList().find(r => r.id === id) : null;
@@ -2590,21 +2638,6 @@ function openStockForm(id) {
   $('st_type').value = x ? x.type : '';
   if (!x) $('st_type').selectedIndex = 0;
   $('st_descs').innerHTML = [...new Set(ohList().map(r => r.desc))].sort().map(d => `<option value="${esc(d)}">`).join('');
-  const sellers = (S.sellers || []).slice().sort((a, b) => a.localeCompare(b));
-  $('st_to').innerHTML = '<option value="">— Not reserved —</option>' + sellers.map(n => `<option>${esc(n)}</option>`).join('');
-  $('st_to').value = x ? x.reservedTo : '';
-  $('st_date').value = x ? (x.resvDate || '') : '';
-  $('st_release').value = '';
-  const relWrap = () => {
-    const clearing = !!(x && x.reservedTo && !$('st_to').value);
-    $('st_release_wrap').style.display = clearing && x.taken ? '' : 'none';
-    $('st_release').required = clearing && x.taken;
-    $('st_note').textContent = x && !x.reservedTo && $('st_to').value
-      ? `Saving takes 1 unit off Qty: ${Number($('st_qty').value) || 0} → ${Math.max(0, (Number($('st_qty').value) || 0) - 1)}. Then press ⏱ to start the 48-hour timer.`
-      : 'Choosing a seller in Reserved To takes 1 unit off Qty automatically. Then press ⏱ on the row to start the 48-hour timer.';
-  };
-  $('st_to').onchange = relWrap; $('st_qty').oninput = relWrap; relWrap();
-  document.querySelectorAll('#stockForm .st-resv').forEach(el => { el.style.display = x ? '' : 'none'; });
   $('stSave').disabled = false; $('stSave').textContent = 'Save';
   $('stockModal').classList.add('open');
   document.body.classList.add('noscroll');
@@ -2614,36 +2647,22 @@ function closeStockForm() { $('stockModal').classList.remove('open'); document.b
 function saveStock(e) {
   e.preventDefault();
   const id = $('st_id').value;
-  const item = { id: id, matcode: $('st_mat').value.trim(), desc: $('st_desc').value.trim(), type: $('st_type').value,
-    qty: Number($('st_qty').value), reservedTo: id ? $('st_to').value : '', resvDate: id ? $('st_date').value : '',
-    release: id ? $('st_release').value : '' };
-  const orig = id ? ohList().find(r => r.id === id) : null;
-  if (orig && orig.reservedTo && !item.reservedTo && orig.taken && !item.release) return toast('Choose why the reservation is cleared: Sold or Cancelled', true);
-  if (orig && !orig.reservedTo && item.reservedTo && item.qty < 1) return toast('Out of Stock: there is no unit to reserve.', true);
+  const item = { id: id, matcode: $('st_mat').value.trim(), desc: $('st_desc').value.trim(), type: $('st_type').value, qty: Number($('st_qty').value) };
   if (!item.matcode || !item.desc || !item.type) return toast('Enter Matcode, Item Desc and Type', true);
   if (!Number.isInteger(item.qty) || item.qty < 0) return toast('Qty must be a whole number, 0 or more', true);
   const dup = ohList().find(r => r.id !== id && r.matcode.toLowerCase() === item.matcode.toLowerCase());
   if (dup) return toast(`Matcode ${item.matcode} already exists (${dup.desc}).`, true);
-  // Show it at once, confirm with the server.
   const backup = ohList().slice();
   const preview = Object.assign({}, id ? ohList().find(r => r.id === id) : {}, item,
     { id: id || 'tmp-' + Date.now(), status: item.qty > 0 ? 'In Stock' : 'Out of Stock', pending: true });
-  if (!item.reservedTo && id) { preview.resvDate = ''; preview.holdUntil = 0; }
-  // Same Qty rule as the server: reserving takes 1 off, Cancelled gives it back.
-  if (orig && !orig.reservedTo && item.reservedTo) { preview.qty = item.qty - 1; preview.taken = true; }
-  if (orig && orig.reservedTo && !item.reservedTo) { if (orig.taken && item.release === 'return') preview.qty = item.qty + 1; preview.taken = false; }
-  preview.status = preview.qty > 0 ? 'In Stock' : 'Out of Stock';
   S.onHand = id ? ohList().map(r => r.id === id ? preview : r) : ohList().concat([preview]);
   closeStockForm(); renderOnHand(); renderKpis();
   api('stockSave', { item: item }).then(list => {
     S.onHand = list || []; renderOnHand(); renderKpis(); saveCache();
-    toast(!id ? 'Product added'
-      : orig && !orig.reservedTo && item.reservedTo ? `Reserved to ${item.reservedTo} · Qty ${item.qty} → ${item.qty - 1}`
-      : orig && orig.reservedTo && !item.reservedTo && item.release === 'return' ? 'Reservation cancelled · 1 unit back to Qty'
-      : 'Product updated');
+    toast(id ? 'Product updated' : 'Product added');
   }).catch(err => { S.onHand = backup; renderOnHand(); renderKpis(); toast(err.message, true); });
 }
-function replaceOh(row) { S.onHand = ohList().map(r => r.id === row.id ? row : r); renderOnHand(); renderKpis(); saveCache(); }
+function replaceOh(row) { if (!row) return; S.onHand = ohList().map(r => r.id === row.id ? row : r); renderOnHand(); renderKpis(); saveCache(); }
 function stockQty(id, delta) {
   const x = ohList().find(r => r.id === id); if (!x || x.pending) return;
   if (delta < 0 && !x.qty) return;
@@ -2653,22 +2672,90 @@ function stockQty(id, delta) {
   api('stockQty', { id: id, delta: delta }).then(replaceOh)
     .catch(err => { replaceOh(before); toast(err.message, true); });
 }
-function stockHold(id) {
-  const x = ohList().find(r => r.id === id); if (!x) return;
-  if (!x.reservedTo) return toast('Choose Reserved To first: press ✎ Edit.', true);
-  if (!confirm(`Start the 48-hour timer for ${x.desc}?\nReserved To: ${x.reservedTo}`)) return;
-  const before = Object.assign({}, x);
-  x.holdUntil = Date.now() + 48 * 3600000; renderOnHand();
-  api('stockHold', { id: id }).then(row => { replaceOh(row); toast('48-hour timer started'); })
-    .catch(err => { replaceOh(before); toast(err.message, true); });
-}
 function stockDelete(id) {
   const x = ohList().find(r => r.id === id); if (!x) return;
-  if (!confirm(`Delete this product?\n${x.matcode} · ${x.desc}`)) return;
-  const backup = ohList().slice();
-  S.onHand = ohList().filter(r => r.id !== id); renderOnHand(); renderKpis();
+  const n = openResvOf(id).length;
+  if (!confirm(`Delete this product?\n${x.matcode} · ${x.desc}` + (n ? `\n\nIts ${n} open reservation(s) will be cancelled.` : ''))) return;
+  const backup = ohList().slice(), rbackup = resvList().slice();
+  S.onHand = ohList().filter(r => r.id !== id);
+  S.reservations = resvList().map(r => r.productId === id && isOpenResv(r) ? Object.assign({}, r, { status: 'Cancelled', closedAt: Date.now() }) : r);
+  renderOnHand(); renderKpis();
   api('stockDelete', { id: id }).then(() => { saveCache(); toast('Product deleted'); })
-    .catch(err => { S.onHand = backup; renderOnHand(); renderKpis(); toast(err.message, true); });
+    .catch(err => { S.onHand = backup; S.reservations = rbackup; renderOnHand(); renderKpis(); toast(err.message, true); });
+}
+
+/* ----- Reservations (Admin): several per product ----- */
+function openResvForm(pid) {
+  if (!S.admin) return;
+  const x = ohList().find(r => r.id === pid); if (!x) return;
+  $('rv_pid').value = pid;
+  $('rvProduct').innerHTML = `<b>${esc(x.desc)}</b> · ${esc(x.matcode)} · Qty <b>${x.qty}</b>` + (x.qty ? '' : ' · <span style="color:#e04032">Out of Stock: the timer cannot start until a unit is added</span>');
+  const sellers = (S.sellers || []).slice().sort((a, b) => a.localeCompare(b));
+  $('rv_seller').innerHTML = '<option value="" disabled selected>Choose seller</option>' + sellers.map(n => `<option>${esc(n)}</option>`).join('');
+  $('rv_date').value = today();
+  $('resvModal').classList.add('open');
+  document.body.classList.add('noscroll');
+}
+function closeResvForm() { $('resvModal').classList.remove('open'); document.body.classList.remove('noscroll'); }
+function saveResv(e) {
+  e.preventDefault();
+  const pid = $('rv_pid').value, seller = $('rv_seller').value, date = $('rv_date').value;
+  if (!seller) return toast('Choose the seller', true);
+  const x = ohList().find(r => r.id === pid);
+  const tmp = { id: 'tmp-' + Date.now(), productId: pid, matcode: x ? x.matcode : '', desc: x ? x.desc : '', seller: seller,
+    resvDate: date, holdUntil: 0, status: 'Pending', taken: false, pending: true };
+  S.reservations = resvList().concat([tmp]);
+  closeResvForm(); renderOnHand(); renderKpis();
+  api('resvCreate', { productId: pid, seller: seller, resvDate: date }).then(res => {
+    S.reservations = resvList().map(r => r.id === tmp.id ? res.reservation : r);
+    renderOnHand(); renderKpis(); saveCache();
+    toast(`Reserved for ${seller} · press ⏱ to start the 48 hours`);
+  }).catch(err => { S.reservations = resvList().filter(r => r.id !== tmp.id); renderOnHand(); renderKpis(); toast(err.message, true); });
+}
+function resvDo(id, what) {
+  const r = resvList().find(x => x.id === id); if (!r || r.pending) return;
+  const p = ohList().find(x => x.id === r.productId);
+  const st = resvState(r);
+  const msg = what === 'timer'
+    ? (st === 'Pending' ? `Start the 48-hour timer for ${r.seller}?\n${r.desc}\n\nThis takes 1 unit off Qty (${p ? p.qty : '?'} → ${p ? Math.max(0, p.qty - 1) : '?'}).` : `Restart the 48 hours for ${r.seller}?\n${r.desc}`)
+    : what === 'sold' ? `Mark as Sold?\n${r.seller} · ${r.desc}\n\nThe customer took the unit.${r.taken ? '' : ' Qty goes down by 1.'}`
+    : `Cancel this reservation?\n${r.seller} · ${r.desc}${r.taken ? '\n\n1 unit goes back to Qty.' : ''}`;
+  if (!confirm(msg)) return;
+  if ((what === 'timer' || what === 'sold') && !r.taken && p && !p.qty) return toast('Out of Stock: Qty is 0. Add the unit with + first.', true);
+  const before = Object.assign({}, r), pBefore = p ? Object.assign({}, p) : null;
+  // show it at once
+  if (what === 'timer') { if (!r.taken && p) { p.qty--; r.taken = true; } r.status = 'Active'; r.holdUntil = Date.now() + 48 * 3600000; }
+  else if (what === 'sold') { if (!r.taken && p) { p.qty--; r.taken = true; } r.status = 'Sold'; r.closedAt = Date.now(); }
+  else { if (r.taken && p) p.qty++; r.status = 'Cancelled'; r.closedAt = Date.now(); }
+  if (p) p.status = p.qty > 0 ? 'In Stock' : 'Out of Stock';
+  renderOnHand(); renderKpis();
+  const action = { timer: 'resvTimer', sold: 'resvSold', cancel: 'resvCancel' }[what];
+  api(action, { id: id }).then(res => {
+    S.reservations = resvList().map(x => x.id === id ? res.reservation : x);
+    if (res.product) replaceOh(res.product); else { renderOnHand(); renderKpis(); saveCache(); }
+    toast(what === 'timer' ? '48-hour timer started' : what === 'sold' ? 'Marked as Sold' : 'Reservation cancelled');
+  }).catch(err => {
+    S.reservations = resvList().map(x => x.id === id ? before : x);
+    if (pBefore) S.onHand = ohList().map(x => x.id === pBefore.id ? pBefore : x);
+    renderOnHand(); renderKpis(); toast(err.message, true);
+  });
+}
+function openResvHistory() {
+  const sellers = [...new Set(resvList().map(r => r.seller))].sort();
+  $('rh_seller').innerHTML = '<option value="">All sellers</option>' + sellers.map(n => `<option>${esc(n)}</option>`).join('');
+  $('resvHistModal').classList.add('open');
+  drawResvHistory();
+}
+function closeResvHistory() { $('resvHistModal').classList.remove('open'); }
+function drawResvHistory() {
+  const who = $('rh_seller').value;
+  const list = resvList().filter(r => (r.status === 'Sold' || r.status === 'Cancelled') && (!who || r.seller === who))
+    .sort((a, b) => b.closedAt - a.closedAt);
+  $('rhSub').textContent = list.length ? `${list.length} finished reservation(s) · newest first` : 'No finished reservations yet.';
+  const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  $('rhList').innerHTML = list.map(r => `<li><span class="t">${esc(fmt(r.closedAt))}</span>
+    <span><span class="ev">${esc(r.status)}</span><span class="mv"> · ${esc(r.seller)} · ${esc(r.desc)} (${esc(r.matcode)})</span>
+    <br><span class="mv">Reserved ${esc(r.resvDate)} · by ${esc(r.by)}</span></span></li>`).join('');
 }
 
 $('kpis').addEventListener('click', function(e) {
