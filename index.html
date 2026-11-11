@@ -1495,7 +1495,8 @@ a.nav-item:hover{color:#274ebd}
 }
 /* Stock Inventory */
 .inventory-panel{margin-bottom:20px}
-.inv-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.inv-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media (max-width:1100px){.inv-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .inv-stat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .inv-stat b{font-size:22px;font-variant-numeric:tabular-nums}
 .inv-stat span{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
@@ -2540,7 +2541,7 @@ function renderOnHand() {
   const total = all.reduce((a, x) => a + x.qty, 0);
   const reserved = all.filter(x => x.reservedTo);
   const lapsed = reserved.filter(x => x.holdUntil && x.holdUntil <= Date.now());
-  $('ohSummary').innerHTML = [['Total units', total], ['Products', all.length], ['Out of Stock', all.filter(x => !x.qty).length], ['Reserved', reserved.length - lapsed.length], ['Lapsed', lapsed.length]]
+  $('ohSummary').innerHTML = [['Total units', total], ['Products', all.length], ['In Stock', all.filter(x => x.qty > 0).length], ['Out of Stock', all.filter(x => !x.qty).length], ['Reserved', reserved.length - lapsed.length], ['Lapsed', lapsed.length]]
     .map(([l, v]) => `<div class="inv-stat"><b>${formatCount(v)}</b><span>${l}</span></div>`).join('');
   const cols = [['matcode', 'Matcode'], ['desc', 'Item Desc'], ['type', 'Type'], ['qty', 'Qty'], ['status', 'Status'], ['resvDate', 'Resv Date'], ['reservedTo', 'Reserved To']];
   $('ohHead').innerHTML = cols.map(([k, l]) => `<th><button type="button" class="oh-sort ${S.oh.sort === k ? 'on' : ''}" onclick="sortOh('${k}')">${l}${S.oh.sort === k ? (S.oh.dir > 0 ? ' ▲' : ' ▼') : ''}</button></th>`).join('') + '<th>Action</th>';
