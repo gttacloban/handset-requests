@@ -1938,7 +1938,7 @@ a.nav-item:hover{color:#274ebd}
     <div class="fgrid"><div class="full"><label for="rh_seller">Seller</label><select id="rh_seller" onchange="drawResvHistory()"></select></div></div>
     <div class="note" id="rhSub"></div>
     <ul class="ulog" id="rhList"></ul>
-    <div class="actions"><button type="button" class="btn btn-light" onclick="closeResvHistory()">Close</button></div>
+    <div class="actions"><button type="button" class="btn btn-light" id="rhClear" hidden onclick="clearResvHistory()">🗑 Clear history</button><button type="button" class="btn btn-light" onclick="closeResvHistory()">Close</button></div>
   </div>
 </div>
 
@@ -2746,12 +2746,26 @@ function openResvHistory() {
   $('resvHistModal').classList.add('open');
   drawResvHistory();
 }
+function clearResvHistory() {
+  const who = $('rh_seller').value;
+  const done = r => (r.status === 'Sold' || r.status === 'Cancelled') && (!who || r.seller === who);
+  const n = resvList().filter(done).length;
+  if (!n) return;
+  if (!confirm(`Delete ${n} finished reservation(s)${who ? ' of ' + who : ''} from the history?\n\nOpen reservations are not touched. This cannot be undone.`)) return;
+  const backup = resvList().slice();
+  S.reservations = resvList().filter(r => !done(r));
+  drawResvHistory();
+  api('resvClearHistory', { seller: who }).then(res => { saveCache(); toast(`${res.removed} reservation(s) removed from history`); })
+    .catch(err => { S.reservations = backup; drawResvHistory(); toast(err.message, true); });
+}
 function closeResvHistory() { $('resvHistModal').classList.remove('open'); }
 function drawResvHistory() {
   const who = $('rh_seller').value;
   const list = resvList().filter(r => (r.status === 'Sold' || r.status === 'Cancelled') && (!who || r.seller === who))
     .sort((a, b) => b.closedAt - a.closedAt);
   $('rhSub').textContent = list.length ? `${list.length} finished reservation(s) · newest first` : 'No finished reservations yet.';
+  $('rhClear').hidden = !S.admin || !list.length;
+  $('rhClear').textContent = who ? `🗑 Clear ${who}'s history` : '🗑 Clear history';
   const fmt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: PH_TZ, month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   $('rhList').innerHTML = list.map(r => `<li><span class="t">${esc(fmt(r.closedAt))}</span>
     <span><span class="ev">${esc(r.status)}</span><span class="mv"> · ${esc(r.seller)} · ${esc(r.desc)} (${esc(r.matcode)})</span>
