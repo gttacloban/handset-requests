@@ -1722,7 +1722,23 @@ a.nav-item:hover{color:#274ebd}
             <tbody id="ohBody"></tbody>
           </table></div>
           <div class="oh-cards" id="ohCards"></div>
-          <div class="note" id="ohCount"></div>
+          <nav class="requests-pagination" aria-label="Products pagination">
+            <span id="ohCount" class="pagination-count" aria-live="polite">Showing 0 products</span>
+            <div class="pagination-controls">
+              <div class="page-size-group">
+                <label for="ohPageSize">Show</label>
+                <select id="ohPageSize" class="page-size-select" aria-label="Products per page" onchange="setOhPageSize(this.value)">
+                  <option value="5" selected>5</option><option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="100">100</option>
+                </select>
+                <span>per page</span>
+              </div>
+              <div class="page-navigation">
+                <button type="button" class="page-nav-btn" id="ohPrev" onclick="goOhPage(S.oh.page - 1)" disabled aria-label="Previous page">‹ Previous</button>
+                <span id="ohPageInd" class="page-indicator" aria-live="polite">Page 1 of 1</span>
+                <button type="button" class="page-nav-btn" id="ohNext" onclick="goOhPage(S.oh.page + 1)" disabled aria-label="Next page">Next ›</button>
+              </div>
+            </div>
+          </nav>
         </section>
         <div class="section-heading" id="requestsSection"><div><div class="eyebrow">REQUEST MONITORING</div><h2 id="requestsTitle">All Requests</h2></div>
           <span class="heading-helper">Search, filter and manage handset requests</span></div>
@@ -2547,7 +2563,7 @@ function renderKpis() {
 
 /* ================= On-Hand Stock: Inventory & Reservations ================= */
 const STOCK_TYPES_DEFAULT = ['iPhone', 'Honor', 'Samsung', 'Huawei', 'Oppo', 'Infinix', 'Vivo', 'Xiaomi', 'Realme', 'Modem Kit'];
-S.oh = S.oh || { q: '', type: '', status: '', to: '', from: '', toDate: '', sort: 'desc', dir: 1 };
+S.oh = S.oh || { q: '', type: '', status: '', to: '', from: '', toDate: '', sort: 'desc', dir: 1, page: 1, size: 5 };
 const ohList = () => S.onHand || [];
 const resvList = () => S.reservations || [];
 const stockTypes = () => (S.stockTypes && S.stockTypes.length ? S.stockTypes : STOCK_TYPES_DEFAULT);
@@ -2565,9 +2581,11 @@ function resvTimerText(r) {
   const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000);
   return `${h}h ${String(m).padStart(2, '0')}m left`;
 }
-function setOh(k, v) { S.oh[k] = v; renderOnHand(); }
-function ohTile(k, v) { S.oh[k] = S.oh[k] === v ? '' : v; renderOnHand(); }
-function clearOhDates() { S.oh.from = S.oh.toDate = ''; $('oh_from').value = $('oh_to_date').value = ''; renderOnHand(); }
+function setOh(k, v) { S.oh[k] = v; S.oh.page = 1; renderOnHand(); }
+function ohTile(k, v) { S.oh[k] = S.oh[k] === v ? '' : v; S.oh.page = 1; renderOnHand(); }
+function setOhPageSize(v) { S.oh.size = Number(v) || 5; S.oh.page = 1; renderOnHand(); }
+function goOhPage(n) { S.oh.page = n; renderOnHand(); }
+function clearOhDates() { S.oh.page = 1; S.oh.from = S.oh.toDate = ''; $('oh_from').value = $('oh_to_date').value = ''; renderOnHand(); }
 function sortOh(key) { S.oh.dir = S.oh.sort === key ? -S.oh.dir : 1; S.oh.sort = key; renderOnHand(); }
 function ohFiltered() {
   const f = S.oh, q = norm(f.q);
@@ -2622,7 +2640,11 @@ function renderOnHand() {
   }).join('');
   const cols = [['matcode', 'Matcode'], ['desc', 'Item Desc'], ['type', 'Type'], ['qty', 'Qty'], ['status', 'Status'], ['resvDate', 'Resv Date'], ['reservedTo', 'Reserved To']];
   $('ohHead').innerHTML = cols.map(([k, l]) => `<th><button type="button" class="oh-sort ${S.oh.sort === k ? 'on' : ''}" onclick="sortOh('${k}')">${l}${S.oh.sort === k ? (S.oh.dir > 0 ? ' ▲' : ' ▼') : ''}</button></th>`).join('') + '<th>Action</th>';
-  const list = ohFiltered();
+  const filteredAll = ohFiltered();
+  const pages = Math.max(1, Math.ceil(filteredAll.length / S.oh.size));
+  S.oh.page = Math.max(1, Math.min(pages, S.oh.page || 1));
+  const first = (S.oh.page - 1) * S.oh.size;
+  const list = filteredAll.slice(first, first + S.oh.size);
   const qtyCell = x => S.admin
     ? `<span class="oh-qty"><button type="button" class="oh-step" title="Minus 1 (sold)" onclick="stockQty('${esc(x.id)}',-1)" ${x.qty ? '' : 'disabled'}>−</button><b>${x.qty}</b><button type="button" class="oh-step" title="Add 1 (received)" onclick="stockQty('${esc(x.id)}',1)">+</button></span>`
     : `<b>${x.qty}</b>`;
@@ -2644,7 +2666,14 @@ function renderOnHand() {
       ${x._resv.length ? `<div class="oh-card-row oh-card-rv"><span>Reserved To</span>${chips(x)}</div>` : ''}
       ${S.admin ? `<div class="oh-card-row oh-card-act">${actions(x)}</div>` : ''}</div>`).join('') ||
       `<div class="note">${all.length ? 'No products match the filters.' : 'No products yet.'}</div>`;
-  $('ohCount').textContent = `Showing ${list.length} of ${all.length} product(s) · Status is automatic: Qty 0 = Out of Stock.`;
+  const n = filteredAll.length;
+  $('ohCount').textContent = n
+    ? `Showing ${first + 1}–${first + list.length} of ${n} ${n === 1 ? 'product' : 'products'}${n !== all.length ? ` (${all.length} total)` : ''}`
+    : `Showing 0 products${all.length ? ` (${all.length} total)` : ''}`;
+  $('ohPageSize').value = String(S.oh.size);
+  $('ohPageInd').textContent = `Page ${S.oh.page} of ${pages}`;
+  $('ohPrev').disabled = S.oh.page <= 1;
+  $('ohNext').disabled = S.oh.page >= pages;
 }
 // keep the timers moving
 setInterval(() => { if (S.loaded && !document.hidden && resvList().some(r => r.holdUntil && isOpenResv(r))) renderOnHand(); }, 30000);
