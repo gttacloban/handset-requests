@@ -1523,6 +1523,12 @@ a.nav-item:hover{color:#274ebd}
   background:rgba(255,255,255,.2);font-size:15px;color:#fff !important;font-weight:800;letter-spacing:0;text-transform:none}
 .inv-tile::after{content:"";position:absolute;right:-24px;bottom:-30px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.1)}
 /* Chat */
+.chat-dots{display:inline-flex;gap:4px;align-items:center;padding:12px 14px !important}
+.chat-dots i{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.5;animation:chatDot 1.2s infinite}
+.chat-dots i:nth-child(2){animation-delay:.2s}.chat-dots i:nth-child(3){animation-delay:.4s}
+@keyframes chatDot{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:.9}}
+@media (prefers-reduced-motion:reduce){.chat-dots i{animation:none}}
+.chat-typing{color:#22c55e;font-style:normal;font-weight:700}
 .chat-fab[hidden],.chat-panel[hidden],.chat-input[hidden],.chat-badge[hidden],.chat-ico[hidden]{display:none!important}
 .chat-fab{position:fixed;right:max(20px,env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:60;
   width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;color:#fff;background:linear-gradient(135deg,#2f6bff,#1d47c9);
@@ -3854,7 +3860,7 @@ function renderChat() {
     $('chatSub').textContent = 'Messages from your sellers';
     $('chatBody').innerHTML = threads.length ? threads.map(t => `<button type="button" class="chat-thread" onclick="openThread('${esc(t.email)}')">
         <span class="chat-av">${esc((t.name || '?').slice(0, 1).toUpperCase())}</span>
-        <span class="chat-tmain"><b>${esc(t.name)}</b><span>${t.last ? esc((t.last.role === 'Admin' ? 'You: ' : '') + t.last.text) : 'No messages yet'}</span></span>
+        <span class="chat-tmain"><b>${esc(t.name)}</b><span>${(S.chatTypingNow || []).includes(t.email) ? '<em class="chat-typing">typing…</em>' : t.last ? esc((t.last.role === 'Admin' ? 'You: ' : '') + t.last.text) : 'No messages yet'}</span></span>
         <span class="chat-tside">${t.last ? esc(chatTime(t.last.time)) : ''}${t.unread ? `<i>${t.unread}</i>` : ''}</span></button>`).join('')
       : '<div class="chat-empty">No sellers yet.</div>';
     return;
@@ -3871,13 +3877,14 @@ function renderChat() {
       <div class="chat-bubble">${esc(m.text).replace(/\n/g, '<br>')}</div>
       <div class="chat-meta">${mine(m) ? '' : esc(m.name) + ' · '}${m.pending ? 'Sending…' : esc(chatTime(m.time))}${mine(m) && !m.pending && (S.admin ? m.readBySeller : m.readByAdmin) ? ' · Seen' : ''}</div></div>`).join('')
     : `<div class="chat-empty">${S.admin ? 'No messages with this seller yet.' : 'Send a message to the Admin.'}</div>`;
+  if ((S.chatTypingNow || []).includes(thread)) body.innerHTML += `<div class="chat-msg them"><div class="chat-bubble chat-dots" aria-label="typing"><i></i><i></i><i></i></div><div class="chat-meta">${S.admin ? esc(t ? t.name : 'Seller') : 'Admin'} is typing…</div></div>`;
   if (atBottom || S.chatScroll) { body.scrollTop = body.scrollHeight; S.chatScroll = false; }
   markThreadRead(thread);
 }
 function toggleChat(open) {
   $('chatPanel').hidden = !open;
   document.body.classList.toggle('chat-open', !!open);
-  if (open) { S.chatScroll = true; renderChat(); if (!$('chatForm').hidden) setTimeout(() => $('chatText').focus(), 50); }
+  if (open) { S.chatScroll = true; renderChat(); chatFast(); if (!$('chatForm').hidden) setTimeout(() => $('chatText').focus(), 50); }
   else chatBadge();
 }
 function openThread(email) { S.chatThread = email; S.chatScroll = true; renderChat(); if (email) setTimeout(() => $('chatText').focus(), 50); }
@@ -3933,7 +3940,35 @@ function chatSync() {
     }).finally(() => { S.chatFetching = false; });
   }).catch(() => {});
 }
-setInterval(chatSync, 6000);
+setInterval(() => { if ($('chatPanel').hidden) chatSync(); }, 6000);
+// While the chat is open: one quick call every 1.5 seconds (no sheet read when nothing changed).
+function chatFast() {
+  if ($('chatPanel').hidden || !S.loaded || !S.user || document.hidden || S.chatFetching || !tokenValid()) return;
+  S.chatFetching = true;
+  const before = new Set(chatMsgs().map(m => m.id));
+  api('chatPoll', { rev: S.chat.rev }).then(res => {
+    const wasTyping = JSON.stringify(S.chatTypingNow || []);
+    S.chatTypingNow = res.typing || [];
+    if (res.same) { if (wasTyping !== JSON.stringify(S.chatTypingNow)) renderChat(); return; }
+    const pending = chatMsgs().filter(m => m.pending);
+    S.chat = { rev: res.rev, messages: (res.messages || []).concat(pending) };
+    renderChat();
+    const viewing = S.admin ? S.chatThread : myEmail();
+    (res.messages || []).filter(m => !before.has(m.id) && isUnread(m) && m.thread !== viewing).slice(-1)
+      .forEach(m => toast(`💬 New message from ${m.name}`));
+  }).catch(() => {}).finally(() => { S.chatFetching = false; });
+}
+setInterval(chatFast, 1500);
+// Tell the other side "typing…" (at most once every 3 seconds).
+let chatTypingSent = 0;
+document.addEventListener('input', e => {
+  if (!e.target || e.target.id !== 'chatText' || !e.target.value.trim()) return;
+  if (Date.now() - chatTypingSent < 3000) return;
+  const thread = S.admin ? S.chatThread : myEmail();
+  if (!thread) return;
+  chatTypingSent = Date.now();
+  api('chatTyping', { thread: thread }).catch(() => {});
+});
 document.addEventListener('visibilitychange', () => { if (!document.hidden) chatSync(); });
 
 function openUsers() {
@@ -4364,6 +4399,8 @@ let SYNC_REV = null;
 (function wrapApiForSync() {
   const base = api;
   api = function (a, p, r) {
+    // Chat calls are frequent background reads: they must not hold back the dashboard refresh.
+    if (/^chat(Poll|Typing|Read)$/.test(a)) return base(a, p, r);
     S.apiBusy = (S.apiBusy || 0) + 1;
     return Promise.resolve(base(a, p, r)).finally(() => { S.apiBusy--; });
   };
