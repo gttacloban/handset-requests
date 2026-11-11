@@ -4018,7 +4018,8 @@ function chatFast() {
   if ($('chatPanel').hidden || !S.loaded || !S.user || document.hidden || S.chatFetching || !tokenValid()) return;
   S.chatFetching = true;
   const before = new Set(chatMsgs().map(m => m.id));
-  api('chatPoll', { rev: S.chat.rev }).then(res => {
+  const threads = S.admin ? (S.users || []).filter(u => u.role === 'Seller').map(u => u.email) : undefined;
+  api('chatPoll', { rev: S.chat.rev, threads: threads }).then(res => {
     const wasTyping = JSON.stringify(S.chatTypingNow || []);
     S.chatTypingNow = res.typing || [];
     if (res.same) { if (wasTyping !== JSON.stringify(S.chatTypingNow)) renderChat(); return; }
@@ -4032,12 +4033,12 @@ function chatFast() {
     if (incoming.length) playChatSound();
   }).catch(() => {}).finally(() => { S.chatFetching = false; });
 }
-setInterval(chatFast, 1500);
+setInterval(chatFast, 1000);
 // Tell the other side "typing…" (at most once every 3 seconds).
 let chatTypingSent = 0;
 document.addEventListener('input', e => {
   if (!e.target || e.target.id !== 'chatText' || !e.target.value.trim()) return;
-  if (Date.now() - chatTypingSent < 3000) return;
+  if (Date.now() - chatTypingSent < 2500) return;
   const thread = S.admin ? S.chatThread : myEmail();
   if (!thread) return;
   chatTypingSent = Date.now();
