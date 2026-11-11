@@ -148,12 +148,12 @@ label .req{color:var(--ca)}
 @media(max-width:480px){.ulog li{grid-template-columns:1fr;gap:2px}}
 .top li.tbar-row{display:grid;grid-template-columns:22px minmax(0,1fr);align-items:center;gap:12px}
 .tbar-rank{font-size:20px;font-weight:800;opacity:.9;text-align:center;font-variant-numeric:tabular-nums}
-.tbar-body{min-width:0;display:flex;flex-direction:column;gap:4px}
-.tbar-line{display:grid;grid-template-columns:minmax(0,auto) minmax(60px,1fr) 46px;align-items:center;gap:12px}
-.tbar-name{font-weight:700;line-height:1.25;overflow-wrap:anywhere;max-width:22ch}
-.tbar-track{display:block;height:8px;border-radius:999px;background:rgba(127,150,200,.14);overflow:hidden}
+.tbar-body{min-width:0;display:flex;flex-direction:column;gap:5px}
+.tbar-line{display:flex;align-items:center;gap:12px}
+.tbar-name{font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.tbar-track{flex:1;display:block;height:8px;border-radius:999px;background:rgba(127,150,200,.14);overflow:hidden}
 .tbar-fill{display:block;height:100%;border-radius:999px}
-.tbar-num{text-align:right;font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+.tbar-num{min-width:46px;text-align:right;font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
 .tbar-sub{display:block;color:var(--muted);font-size:12.5px;font-weight:500}
 .sellernote{background:var(--aw-bg);color:var(--aw-ink);border-radius:10px;padding:10px 12px;font-size:13px}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
@@ -2564,6 +2564,8 @@ const STOCK_TYPES_DEFAULT = ['iPhone', 'Honor', 'Samsung', 'Huawei', 'Oppo', 'In
 S.oh = S.oh || { q: '', type: '', status: '', to: '', from: '', toDate: '', sort: 'desc', dir: 1, page: 1, size: 5 };
 const ohList = () => S.onHand || [];
 const resvList = () => S.reservations || [];
+// Seller names for reservations (the Admin account is not a seller).
+const stockSellers = () => (S.sellers || []).filter(n => n && norm(n) !== 'admin').slice().sort((a, b) => a.localeCompare(b));
 const stockTypes = () => (S.stockTypes && S.stockTypes.length ? S.stockTypes : STOCK_TYPES_DEFAULT);
 // Lapsed is worked out live: an Active reservation whose 48 hours are over (it stays reserved).
 const resvState = r => (r.status === 'Active' || r.status === 'Lapsed') && r.holdUntil && r.holdUntil <= Date.now() ? 'Lapsed'
@@ -2615,8 +2617,10 @@ function renderOnHand() {
   const all = ohList();
   const keep = (el, html, v) => { el.innerHTML = html; el.value = v; };
   keep($('oh_type'), '<option value="">All Type</option>' + stockTypes().map(t => `<option>${esc(t)}</option>`).join(''), S.oh.type);
-  const sellers = (S.sellers || []).slice().sort((a, b) => a.localeCompare(b));
-  keep($('oh_to'), '<option value="">All Reserved</option><option value="__any">Reserved (any seller)</option><option value="__none">Not reserved</option>' +
+  const sellers = stockSellers();
+  // All Reserved + seller names. The hidden option is used by the Reservations menu
+  // and the Reserved / Lapsed tiles.
+  keep($('oh_to'), '<option value="">All Reserved</option><option value="__any" hidden>Reserved (any seller)</option>' +
     sellers.map(n => `<option>${esc(n)}</option>`).join(''), S.oh.to);
   $('ohAddBtn').hidden = !S.admin;
   const total = all.reduce((a, x) => a + x.qty, 0);
@@ -2742,7 +2746,7 @@ function openResvForm(pid) {
   const x = ohList().find(r => r.id === pid); if (!x) return;
   $('rv_pid').value = pid;
   $('rvProduct').innerHTML = `<b>${esc(x.desc)}</b> · ${esc(x.matcode)} · Qty <b>${x.qty}</b>` + (x.qty ? '' : ' · <span style="color:#e04032">Out of Stock: the timer cannot start until a unit is added</span>');
-  const sellers = (S.sellers || []).slice().sort((a, b) => a.localeCompare(b));
+  const sellers = stockSellers();
   $('rv_seller').innerHTML = '<option value="" disabled selected>Choose seller</option>' + sellers.map(n => `<option>${esc(n)}</option>`).join('');
   $('rv_date').value = today();
   $('resvModal').classList.add('open');
@@ -2948,9 +2952,9 @@ function renderTop() {
     return `<li class="tbar-row" title="${esc(x.desc)} · ${esc(x.matcode)} · ${x.qty} unit(s) available">
       <span class="tbar-rank">${i + 1}</span>
       <span class="tbar-body">
-        <span class="tbar-line"><span class="tbar-name">${esc(x.desc)}</span>
-          <span class="tbar-track" aria-hidden="true"><span class="tbar-fill" style="width:${Math.max(3, pct)}%;background:${c}"></span></span>
-          <span class="tbar-num">${pct}%</span></span>
+        <span class="tbar-name">${esc(x.desc)}</span>
+        <span class="tbar-line"><span class="tbar-track" aria-hidden="true"><span class="tbar-fill" style="width:${Math.max(3, pct)}%;background:${c}"></span></span>
+          <span class="tbar-num" style="color:${c}">${pct}%</span></span>
         <span class="tbar-sub">${x.qty} ${x.qty === 1 ? 'unit' : 'units'} available</span>
       </span></li>`;
   }).join('')
