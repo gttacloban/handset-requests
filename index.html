@@ -1895,7 +1895,9 @@ a.nav-item:hover{color:#274ebd}
       <div><label for="st_qty">Qty <span class="req">*</span></label><input id="st_qty" type="number" min="0" step="1" value="0" required inputmode="numeric"></div>
       <div class="st-resv"><label for="st_to">Reserved To</label><select id="st_to"></select></div>
       <div class="st-resv"><label for="st_date">Resv Date</label><input id="st_date" type="date"></div>
-      <div class="full st-resv"><div class="sellernote">Choose the seller and date, save, then press ⏱ on the row to start the 48-hour timer. Leave Reserved To empty to clear the reservation. Qty is changed only with + / −.</div></div>
+      <div class="full st-resv" id="st_release_wrap" style="display:none"><label for="st_release">Reservation cleared because <span class="req">*</span></label>
+        <select id="st_release"><option value="" disabled selected>Choose…</option><option value="sold">Sold / collected (Qty stays)</option><option value="return">Cancelled (return 1 unit to Qty)</option></select></div>
+      <div class="full st-resv"><div class="sellernote" id="st_note">Choosing a seller in Reserved To takes 1 unit off Qty automatically. Then press ⏱ on the row to start the 48-hour timer.</div></div>
       <div class="full actions"><button type="button" class="btn btn-light" onclick="closeStockForm()">Cancel</button><button type="submit" class="btn btn-primary" id="stSave">Save</button></div>
     </form>
   </div>
@@ -2591,6 +2593,16 @@ function openStockForm(id) {
   $('st_to').innerHTML = '<option value="">— Not reserved —</option>' + sellers.map(n => `<option>${esc(n)}</option>`).join('');
   $('st_to').value = x ? x.reservedTo : '';
   $('st_date').value = x ? (x.resvDate || '') : '';
+  $('st_release').value = '';
+  const relWrap = () => {
+    const clearing = !!(x && x.reservedTo && !$('st_to').value);
+    $('st_release_wrap').style.display = clearing && x.taken ? '' : 'none';
+    $('st_release').required = clearing && x.taken;
+    $('st_note').textContent = x && !x.reservedTo && $('st_to').value
+      ? `Saving takes 1 unit off Qty: ${Number($('st_qty').value) || 0} → ${Math.max(0, (Number($('st_qty').value) || 0) - 1)}. Then press ⏱ to start the 48-hour timer.`
+      : 'Choosing a seller in Reserved To takes 1 unit off Qty automatically. Then press ⏱ on the row to start the 48-hour timer.';
+  };
+  $('st_to').onchange = relWrap; $('st_qty').oninput = relWrap; relWrap();
   document.querySelectorAll('#stockForm .st-resv').forEach(el => { el.style.display = x ? '' : 'none'; });
   $('stSave').disabled = false; $('stSave').textContent = 'Save';
   $('stockModal').classList.add('open');
@@ -2602,7 +2614,11 @@ function saveStock(e) {
   e.preventDefault();
   const id = $('st_id').value;
   const item = { id: id, matcode: $('st_mat').value.trim(), desc: $('st_desc').value.trim(), type: $('st_type').value,
-    qty: Number($('st_qty').value), reservedTo: id ? $('st_to').value : '', resvDate: id ? $('st_date').value : '' };
+    qty: Number($('st_qty').value), reservedTo: id ? $('st_to').value : '', resvDate: id ? $('st_date').value : '',
+    release: id ? $('st_release').value : '' };
+  const orig = id ? ohList().find(r => r.id === id) : null;
+  if (orig && orig.reservedTo && !item.reservedTo && orig.taken && !item.release) return toast('Choose why the reservation is cleared: Sold or Cancelled', true);
+  if (orig && !orig.reservedTo && item.reservedTo && item.qty < 1) return toast('Out of Stock: there is no unit to reserve.', true);
   if (!item.matcode || !item.desc || !item.type) return toast('Enter Matcode, Item Desc and Type', true);
   if (!Number.isInteger(item.qty) || item.qty < 0) return toast('Qty must be a whole number, 0 or more', true);
   const dup = ohList().find(r => r.id !== id && r.matcode.toLowerCase() === item.matcode.toLowerCase());
@@ -2612,11 +2628,18 @@ function saveStock(e) {
   const preview = Object.assign({}, id ? ohList().find(r => r.id === id) : {}, item,
     { id: id || 'tmp-' + Date.now(), status: item.qty > 0 ? 'In Stock' : 'Out of Stock', pending: true });
   if (!item.reservedTo && id) { preview.resvDate = ''; preview.holdUntil = 0; }
+  // Same Qty rule as the server: reserving takes 1 off, Cancelled gives it back.
+  if (orig && !orig.reservedTo && item.reservedTo) { preview.qty = item.qty - 1; preview.taken = true; }
+  if (orig && orig.reservedTo && !item.reservedTo) { if (orig.taken && item.release === 'return') preview.qty = item.qty + 1; preview.taken = false; }
+  preview.status = preview.qty > 0 ? 'In Stock' : 'Out of Stock';
   S.onHand = id ? ohList().map(r => r.id === id ? preview : r) : ohList().concat([preview]);
   closeStockForm(); renderOnHand(); renderKpis();
   api('stockSave', { item: item }).then(list => {
     S.onHand = list || []; renderOnHand(); renderKpis(); saveCache();
-    toast(id ? 'Product updated' : 'Product added');
+    toast(!id ? 'Product added'
+      : orig && !orig.reservedTo && item.reservedTo ? `Reserved to ${item.reservedTo} · Qty ${item.qty} → ${item.qty - 1}`
+      : orig && orig.reservedTo && !item.reservedTo && item.release === 'return' ? 'Reservation cancelled · 1 unit back to Qty'
+      : 'Product updated');
   }).catch(err => { S.onHand = backup; renderOnHand(); renderKpis(); toast(err.message, true); });
 }
 function replaceOh(row) { S.onHand = ohList().map(r => r.id === row.id ? row : r); renderOnHand(); renderKpis(); saveCache(); }
