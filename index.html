@@ -2605,7 +2605,7 @@ function renderKpis() {
   const served = Number.isFinite(Number(S.servedAllTime)) ? Number(S.servedAllTime) : fulfilled.length;
   const units = rows => summarizeUnits(rows) + ' handset units';
   const cards = [
-    { label: 'Total Products', value: onHand, subtitle: `${stockRows.length} product(s) in On-Hand Stock`, colors: ['#3b4fe0','#2433b0'], icon: '▦', key: 'nav:inventory' },
+    { label: 'Total Units', value: onHand, subtitle: `${formatCount(stockRows.length)} ${stockRows.length === 1 ? 'product' : 'products'} in inventory`, colors: ['#3b4fe0','#2433b0'], icon: '▦', key: 'nav:inventory' },
     { label: 'Total Reservations', value: stockReserved.length, subtitle: 'Open reservations (On-Hand Stock)', colors: ['#2fa8f0','#1678c8'], icon: '⊞', key: 'nav:reservations' },
     { label: 'Total Pre-Order Requests', value: preorders.length, subtitle: units(preorders), colors: ['#22c4c9','#0b8f9c'], icon: '◎', key: 'cat:Latest Request' },
     { label: 'Total Standard Requests', value: standard.length, subtitle: units(standard), colors: ['#8b95a8','#5f6a80'], icon: '▤', key: 'cat:Standard Request' },
