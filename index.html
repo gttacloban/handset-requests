@@ -1510,6 +1510,17 @@ a.nav-item:hover{color:#274ebd}
 .rv-btns button{width:24px;height:24px;border-radius:6px;border:0;background:rgba(127,140,170,.18);color:inherit;font-size:12px;cursor:pointer}
 .rv-btns button:hover{background:rgba(127,140,170,.35)}
 @media (max-width:700px){ .oh-card-rv{align-items:flex-start} }
+/* colored summary tiles (On-Hand Stock) */
+.inv-tile{position:relative;overflow:hidden;text-align:left;font:inherit;cursor:default;color:#fff;border:0 !important;
+  background:linear-gradient(135deg,var(--t1),var(--t2));box-shadow:0 8px 20px -12px var(--t2);padding:14px 14px 12px !important;min-height:92px}
+.inv-tile[onclick]{cursor:pointer}
+.inv-tile[onclick]:hover{filter:brightness(1.06)}
+.inv-tile.on{outline:3px solid rgba(255,255,255,.85);outline-offset:-3px}
+.inv-tile b{font-size:26px !important;color:#fff;line-height:1.1}
+.inv-tile span:last-child{color:rgba(255,255,255,.9) !important}
+.inv-tile .inv-ic{position:absolute;top:10px;right:12px;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;
+  background:rgba(255,255,255,.2);font-size:15px;color:#fff !important;font-weight:800;letter-spacing:0;text-transform:none}
+.inv-tile::after{content:"";position:absolute;right:-24px;bottom:-30px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.1)}
 /* Stock Inventory */
 .inventory-panel{margin-bottom:20px}
 .inv-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
@@ -2555,6 +2566,7 @@ function resvTimerText(r) {
   return `${h}h ${String(m).padStart(2, '0')}m left`;
 }
 function setOh(k, v) { S.oh[k] = v; renderOnHand(); }
+function ohTile(k, v) { S.oh[k] = S.oh[k] === v ? '' : v; renderOnHand(); }
 function clearOhDates() { S.oh.from = S.oh.toDate = ''; $('oh_from').value = $('oh_to_date').value = ''; renderOnHand(); }
 function sortOh(key) { S.oh.dir = S.oh.sort === key ? -S.oh.dir : 1; S.oh.sort = key; renderOnHand(); }
 function ohFiltered() {
@@ -2594,8 +2606,20 @@ function renderOnHand() {
   const total = all.reduce((a, x) => a + x.qty, 0);
   const open = resvList().filter(isOpenResv);
   const lapsed = open.filter(r => resvState(r) === 'Lapsed');
-  $('ohSummary').innerHTML = [['Total units', total], ['Products', all.length], ['In Stock', all.filter(x => x.qty > 0).length], ['Out of Stock', all.filter(x => !x.qty).length], ['Reserved', open.length - lapsed.length], ['Lapsed', lapsed.length]]
-    .map(([l, v]) => `<div class="inv-stat"><b>${formatCount(v)}</b><span>${l}</span></div>`).join('');
+  // label, value, icon, color 1, color 2, filter to apply when tapped
+  const tiles = [
+    ['Total Units', total, '▦', '#3b6ff0', '#2448c4', null],
+    ['Products', all.length, '◫', '#6a5af0', '#4632c4', null],
+    ['In Stock', all.filter(x => x.qty > 0).length, '✓', '#2fbf71', '#13894b', ['status', 'In Stock']],
+    ['Out of Stock', all.filter(x => !x.qty).length, '✕', '#f0533e', '#c42b1d', ['status', 'Out of Stock']],
+    ['Reserved', open.length - lapsed.length, '⊞', '#22a7e8', '#0d76b8', ['to', '__any']],
+    ['Lapsed', lapsed.length, '⌛', '#b07cf0', '#7c48c9', ['to', '__any']]
+  ];
+  $('ohSummary').innerHTML = tiles.map(([l, v, ic, c1, c2, f]) => {
+    const on = f && S.oh[f[0]] === f[1];
+    return `<button type="button" class="inv-stat inv-tile${on ? ' on' : ''}" style="--t1:${c1};--t2:${c2}" ${f ? `onclick="ohTile('${f[0]}','${f[1]}')"` : 'tabindex="-1"'}>
+      <span class="inv-ic" aria-hidden="true">${ic}</span><b>${formatCount(v)}</b><span>${l}</span></button>`;
+  }).join('');
   const cols = [['matcode', 'Matcode'], ['desc', 'Item Desc'], ['type', 'Type'], ['qty', 'Qty'], ['status', 'Status'], ['resvDate', 'Resv Date'], ['reservedTo', 'Reserved To']];
   $('ohHead').innerHTML = cols.map(([k, l]) => `<th><button type="button" class="oh-sort ${S.oh.sort === k ? 'on' : ''}" onclick="sortOh('${k}')">${l}${S.oh.sort === k ? (S.oh.dir > 0 ? ' ▲' : ' ▼') : ''}</button></th>`).join('') + '<th>Action</th>';
   const list = ohFiltered();
