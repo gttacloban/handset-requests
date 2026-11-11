@@ -1569,8 +1569,12 @@ body.chat-open .chat-fab{display:none}
 .chat-tside i{font-style:normal;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#ef4444;color:#fff;font-weight:800;display:grid;place-items:center}
 @media (max-width:700px){
   body.mobile-app-ready .chat-fab{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
-  .chat-panel{inset:0;width:100%;height:100%;border-radius:0;border:0;right:0;bottom:0;
+  .chat-panel{top:0;left:0;right:0;bottom:auto;width:100%;height:100%;border-radius:0;border:0;
     padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  /* header and message box never scroll away; only the messages move */
+  .chat-head,.chat-input{flex:none}
+  .chat-body{min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  body.chat-open{overflow:hidden;overscroll-behavior:none}
 }
 /* Stock Inventory */
 .inventory-panel{margin-bottom:20px}
@@ -3882,9 +3886,29 @@ function renderChat() {
   if (atBottom || S.chatScroll) { body.scrollTop = body.scrollHeight; S.chatScroll = false; }
   markThreadRead(thread);
 }
+/* Phone: keep the chat exactly inside the visible area above the keyboard, so the
+   header and the message box stay in place; only the messages scroll. */
+function fitChat() {
+  const panel = $('chatPanel');
+  if (!panel) return;
+  if (panel.hidden || window.innerWidth > 700) { panel.style.top = panel.style.height = ''; return; }
+  const vv = window.visualViewport;
+  const body = $('chatBody');
+  const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 80;
+  panel.style.top = (vv ? vv.offsetTop : 0) + 'px';
+  panel.style.height = (vv ? vv.height : window.innerHeight) + 'px';
+  if (atBottom) body.scrollTop = body.scrollHeight;
+}
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', fitChat);
+  visualViewport.addEventListener('scroll', fitChat);
+}
+window.addEventListener('resize', fitChat);
+document.addEventListener('focusin', e => { if (e.target && e.target.id === 'chatText') setTimeout(fitChat, 250); });
 function toggleChat(open) {
   $('chatPanel').hidden = !open;
   document.body.classList.toggle('chat-open', !!open);
+  fitChat();
   if (open) { S.chatScroll = true; renderChat(); chatFast(); if (!$('chatForm').hidden) setTimeout(() => $('chatText').focus(), 50); }
   else chatBadge();
 }
