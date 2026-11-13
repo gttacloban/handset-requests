@@ -1518,7 +1518,8 @@ a.nav-item:hover{color:#274ebd}
 .inv-tile[onclick]:hover{filter:brightness(1.06)}
 .inv-tile.on{outline:3px solid rgba(255,255,255,.85);outline-offset:-3px}
 .inv-tile b{font-size:26px !important;color:#fff;line-height:1.1}
-.inv-tile span:last-child{color:rgba(255,255,255,.9) !important}
+.inv-tile span:last-child,.inv-tile .inv-lbl{color:rgba(255,255,255,.9) !important}
+.inv-tile .inv-unit{position:relative;z-index:1;align-self:flex-start;margin-top:4px;padding:1px 9px;border-radius:99px;background:rgba(255,255,255,.2);color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.02em}
 .inv-tile .inv-ic{position:absolute;top:10px;right:12px;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;
   background:rgba(255,255,255,.2);font-size:15px;color:#fff !important;font-weight:800;letter-spacing:0;text-transform:none}
 .inv-tile::after{content:"";position:absolute;right:-24px;bottom:-30px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.1)}
@@ -2844,18 +2845,18 @@ function renderOnHand() {
   const tiles = [
     // Products = phone types, Total Units = item descriptions that still have units
     // (rows less the Out of Stock ones), In Stock = sum of Qty.
-    ['Products', new Set(all.map(x => String(x.type || '').trim().toLowerCase()).filter(Boolean)).size, '◫', '#6a5af0', '#4632c4', null],
-    ['Total Units', all.filter(x => x.qty > 0).length, '▦', '#3b6ff0', '#2448c4', null],
-    ['In Stock', total, '✓', '#2fbf71', '#13894b', ['status', 'In Stock']],
-    ['Out of Stock', all.filter(x => !x.qty).length, '✕', '#f0533e', '#c42b1d', ['status', 'Out of Stock']],
-    ['Reserved', open.length - lapsed.length, '⊞', '#22a7e8', '#0d76b8', ['to', '__any']],
-    ['Lapsed', lapsed.length, '⌛', '#b07cf0', '#7c48c9', ['to', '__any']],
-    ['Sold', resvList().filter(r => r.status === 'Sold').length, '★', '#f2b01e', '#d07a08', ['history', '']]
+    ['Products', new Set(all.map(x => String(x.type || '').trim().toLowerCase()).filter(Boolean)).size, '◫', '#6a5af0', '#4632c4', null, 'Type'],
+    ['Total Units', all.filter(x => x.qty > 0).length, '▦', '#3b6ff0', '#2448c4', null, 'Item Desc'],
+    ['In Stock', total, '✓', '#2fbf71', '#13894b', ['status', 'In Stock'], 'Qty'],
+    ['Out of Stock', all.filter(x => !x.qty).length, '✕', '#f0533e', '#c42b1d', ['status', 'Out of Stock'], 'Item Desc'],
+    ['Reserved', open.length - lapsed.length, '⊞', '#22a7e8', '#0d76b8', ['to', '__any'], 'Qty'],
+    ['Lapsed', lapsed.length, '⌛', '#b07cf0', '#7c48c9', ['to', '__any'], 'Qty'],
+    ['Sold', resvList().filter(r => r.status === 'Sold').length, '★', '#f2b01e', '#d07a08', ['history', ''], 'Qty']
   ];
-  $('ohSummary').innerHTML = tiles.map(([l, v, ic, c1, c2, f]) => {
+  $('ohSummary').innerHTML = tiles.map(([l, v, ic, c1, c2, f, unit]) => {
     const on = f && S.oh[f[0]] === f[1];
     return `<button type="button" class="inv-stat inv-tile${on ? ' on' : ''}" style="--t1:${c1};--t2:${c2}" ${f ? (f[0] === 'history' ? 'onclick="openResvHistory()" title="Open Reservation history"' : `onclick="ohTile('${f[0]}','${f[1]}')"`) : 'tabindex="-1"'}>
-      <span class="inv-ic" aria-hidden="true">${ic}</span><b>${formatCount(v)}</b><span>${l}</span></button>`;
+      <span class="inv-ic" aria-hidden="true">${ic}</span><b>${formatCount(v)}</b><span class="inv-lbl">${l}</span><small class="inv-unit">${unit}</small></button>`;
   }).join('');
   const cols = [['matcode', 'Matcode'], ['desc', 'Item Desc'], ['type', 'Type'], ['qty', 'Qty'], ['status', 'Status'], ['resvDate', 'Resv Date'], ['reservedTo', 'Reserved To']];
   $('ohHead').innerHTML = cols.map(([k, l]) => `<th><button type="button" class="oh-sort ${S.oh.sort === k ? 'on' : ''}" onclick="sortOh('${k}')">${l}${S.oh.sort === k ? (S.oh.dir > 0 ? ' ▲' : ' ▼') : ''}</button></th>`).join('') + '<th>Action</th>';
