@@ -1609,8 +1609,8 @@ body.chat-open .chat-fab{display:none}
 .sm-table th:first-child,.sm-table td:first-child{text-align:left}
 /* Stock Inventory */
 .inventory-panel{margin-bottom:20px}
-.inv-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
-@media (max-width:1100px){.inv-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.inv-summary{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media (max-width:1100px){.inv-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .inv-stat{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .inv-stat b{font-size:22px;font-variant-numeric:tabular-nums}
 .inv-stat span{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
@@ -2842,10 +2842,12 @@ function renderOnHand() {
   const lapsed = open.filter(r => resvState(r) === 'Lapsed');
   // label, value, icon, color 1, color 2, filter to apply when tapped
   const tiles = [
-    // Products = phone types, Total Units = item descriptions (rows), In Stock = sum of Qty.
+    // Products = phone types, Total Units = item descriptions that still have units
+    // (rows less the Out of Stock ones), In Stock = sum of Qty.
     ['Products', new Set(all.map(x => String(x.type || '').trim().toLowerCase()).filter(Boolean)).size, '◫', '#6a5af0', '#4632c4', null],
-    ['Total Units', all.length, '▦', '#3b6ff0', '#2448c4', null],
+    ['Total Units', all.filter(x => x.qty > 0).length, '▦', '#3b6ff0', '#2448c4', null],
     ['In Stock', total, '✓', '#2fbf71', '#13894b', ['status', 'In Stock']],
+    ['Out of Stock', all.filter(x => !x.qty).length, '✕', '#f0533e', '#c42b1d', ['status', 'Out of Stock']],
     ['Reserved', open.length - lapsed.length, '⊞', '#22a7e8', '#0d76b8', ['to', '__any']],
     ['Lapsed', lapsed.length, '⌛', '#b07cf0', '#7c48c9', ['to', '__any']],
     ['Sold', resvList().filter(r => r.status === 'Sold').length, '★', '#f2b01e', '#d07a08', ['history', '']]
