@@ -1624,8 +1624,9 @@ body.chat-open .chat-fab{display:none}
 .sm-tip em{margin-left:auto;font-style:normal;font-weight:800;font-variant-numeric:tabular-nums}
 .sm-table{margin-top:6px;font-size:12px;color:var(--muted)}
 .sm-table summary{cursor:pointer;font-weight:700}
-.sm-table table{width:100%;border-collapse:collapse;margin-top:6px;font-variant-numeric:tabular-nums}
-.sm-table th,.sm-table td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
+.sm-table table{width:100%;min-width:0 !important;table-layout:fixed;border-collapse:collapse;margin-top:6px;font-variant-numeric:tabular-nums}
+.sm-table #smTable{overflow-x:auto}
+.sm-table th,.sm-table td{padding:4px 6px !important;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sm-table th:first-child,.sm-table td:first-child{text-align:left}
 /* Stock Inventory */
 .inventory-panel{margin-bottom:20px}
@@ -2963,16 +2964,52 @@ function saveStock(e) {
   }).catch(err => { if (mv) dropStockMove(mv); S.onHand = backup; renderOnHand(); renderKpis(); toast(err.message, true); });
 }
 function replaceOh(row) { if (!row) return; S.onHand = ohList().map(r => r.id === row.id ? row : r); renderOnHand(); renderKpis(); saveCache(); }
+/* Qty + / −: fast taps are added up and saved together in one request per product,
+   so no tap is lost and an older answer can never overwrite a newer number. */
+const ohQ = {};   // product id -> { delta, timer, sending, moves }
+const ohQtyBusy = () => Object.keys(ohQ).length > 0;
+const OH_QTY_WAIT = 600;
 function stockQty(id, delta) {
   const x = ohList().find(r => r.id === id); if (!x || x.pending) return;
   if (delta < 0 && !x.qty) return;
-  const before = Object.assign({}, x);
   x.qty += delta; x.status = x.qty > 0 ? 'In Stock' : 'Out of Stock';
-  const mv = addStockMove(delta, delta > 0 ? delta : 0, delta < 0 ? -delta : 0, 0);
+  const q = ohQ[id] || (ohQ[id] = { delta: 0, timer: 0, sending: false, moves: [] });
+  q.delta += delta;
+  q.moves.push(addStockMove(delta, delta > 0 ? delta : 0, delta < 0 ? -delta : 0, 0));
   renderOnHand(); renderKpis();
-  api('stockQty', { id: id, delta: delta }).then(replaceOh)
-    .catch(err => { dropStockMove(mv); replaceOh(before); toast(err.message, true); });
+  clearTimeout(q.timer);
+  q.timer = setTimeout(() => flushOhQty(id), OH_QTY_WAIT);
 }
+function flushOhQty(id) {
+  const q = ohQ[id];
+  if (!q || q.sending) return;          // a save is running: it sends the rest when it returns
+  clearTimeout(q.timer); q.timer = 0;
+  const d = q.delta, moves = q.moves;
+  q.delta = 0; q.moves = [];
+  if (!d) { moves.forEach(dropStockMove); delete ohQ[id]; renderStockChart(); return; }   // + and − cancelled out
+  q.sending = true;
+  api('stockQty', { id: id, delta: d }).then(row => {
+    if (!row) return;
+    // taps made while this save was running stay on top of the saved number
+    row.qty = Math.max(0, (Number(row.qty) || 0) + q.delta);
+    row.status = row.qty > 0 ? 'In Stock' : 'Out of Stock';
+    replaceOh(row);
+  }).catch(err => {
+    moves.forEach(dropStockMove);
+    const x = ohList().find(r => r.id === id);
+    if (x) { x.qty = Math.max(0, x.qty - d); x.status = x.qty > 0 ? 'In Stock' : 'Out of Stock'; }
+    renderOnHand(); renderKpis();
+    toast(err.message, true);
+  }).finally(() => {
+    q.sending = false;
+    if (q.delta) { clearTimeout(q.timer); q.timer = setTimeout(() => flushOhQty(id), 250); }
+    else if (!q.timer) delete ohQ[id];
+  });
+}
+// Leaving the page: send what is still waiting.
+const flushAllOhQty = () => Object.keys(ohQ).forEach(flushOhQty);
+window.addEventListener('pagehide', flushAllOhQty);
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushAllOhQty(); });
 function stockDelete(id) {
   const x = ohList().find(r => r.id === id); if (!x) return;
   const n = openResvOf(id).length;
@@ -4824,7 +4861,7 @@ let SYNC_REV = null;
   };
 })();
 function syncCanRefresh() {
-  return S.loaded && !document.hidden && tokenValid() && !S.fetching && !(S.apiBusy > 0) &&
+  return S.loaded && !document.hidden && tokenValid() && !S.fetching && !(S.apiBusy > 0) && !ohQtyBusy() &&
     !S.updatesPending && !(S.rows || []).some(r => r.pending) && !document.querySelector('.modal.open');
 }
 function syncNow() {
@@ -4837,6 +4874,7 @@ function syncNow() {
     S.fetching = true;
     api('init').then(d => {
       if (String(AUTH.profile && AUTH.profile.email || '').toLowerCase() !== email) return;
+      if (ohQtyBusy()) return;   // Qty taps are being saved: refresh on the next round instead
       SYNC_REV = rev; S.fresh = true; init(d);
       try { refreshAvailableUnits(); } catch (e) {}
       try { refreshUpdates(); } catch (e) {}
