@@ -1629,6 +1629,14 @@ body.chat-open .chat-fab{display:none}
 .sm-legend i,.sm-tip i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
 .sm-chart{position:relative}
 .sm-chart svg{display:block;touch-action:pan-y}
+.sm-plot{position:relative;height:230px}
+.sm-chart .chart-caption{margin-top:14px}
+@media (min-width:921px){
+  /* wide screens: the chart stretches to fill the card when the card beside it is taller */
+  .charts-grid .chart-panel .sm-chart{flex:1;display:flex;flex-direction:column;min-height:0}
+  .charts-grid .chart-panel .sm-plot{flex:1 1 230px;height:auto;min-height:230px}
+  .charts-grid .chart-panel .sm-plot svg{position:absolute;inset:0;height:100%}
+}
 .sm-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
 .sm-cross{stroke:var(--muted);stroke-width:1}
 .sm-tick{fill:var(--muted);font-size:11px;font-family:inherit}
@@ -2766,7 +2774,12 @@ function renderStockChart() {
     <div><span class="sm-k">Total Inventory</span><b>${formatCount(total)}</b><span class="sm-n up">+${formatCount(received)} ${received === 1 ? 'unit' : 'units'} received ${period}</span></div>
     <div class="right"><span class="sm-k">Available Stock</span><b class="ok">${formatCount(availNow)}</b><span class="sm-n">${total ? Math.round(availNow / total * 100) : 0}% of inventory${reservedNow ? ` · ${reservedNow} reserved` : ''}</span></div>`;
   // ----- chart -----
-  const W = Math.max(280, host.clientWidth || 520), H = 230, L = 38, R = 14, T = 12, B = 30;
+  // The plot area is laid out first and measured, so the chart can grow to fill a tall card.
+  host.innerHTML = '<div class="sm-plot" id="smPlot"></div>' + `<div class="chart-caption">${(S.stockMoves || []).length ? 'Units per ' + (S.stockRange === '1D' ? '3 hours' : 'day') + ' · Philippine time' : 'Movement is recorded from now on: every + / −, reservation and sale.'}</div>`;
+  const plot = $('smPlot');
+  const H = Math.max(230, Math.floor(plot.clientHeight) || 230);
+  S.smH = H;
+  const W = Math.max(280, plot.clientWidth || host.clientWidth || 520), L = 38, R = 14, T = 12, B = 30;
   const maxV = Math.max(1, ...data.map(b => Math.max(b.available, b.incoming, b.released)));
   const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].find(v => maxV / v <= 4) || Math.ceil(maxV / 4);
   const top = Math.ceil(maxV / step) * step;
@@ -2784,8 +2797,7 @@ function renderStockChart() {
     if (dots) data.forEach((b, i) => { svg += `<circle cx="${x(i)}" cy="${yy(b[k])}" r="4" fill="${c}" class="sm-dot"/>`; });
   });
   svg += '</svg><div class="sm-tip" id="smTip" hidden></div>';
-  host.innerHTML = data.length ? svg : '<div class="chart-caption">No stock movement yet.</div>';
-  host.insertAdjacentHTML('beforeend', `<div class="chart-caption">${(S.stockMoves || []).length ? 'Units per ' + (S.stockRange === '1D' ? '3 hours' : 'day') + ' · Philippine time' : 'Movement is recorded from now on: every + / −, reservation and sale.'}</div>`);
+  plot.innerHTML = data.length ? svg : '<div class="chart-caption">No stock movement yet.</div>';
   // hover / touch: crosshair + tooltip
   const svgEl = host.querySelector('svg');
   if (svgEl) {
@@ -2811,6 +2823,16 @@ function renderStockChart() {
     `</tbody><tfoot><tr><td>Total</td><td></td><td>${received}</td><td>${releasedSum}</td></tr></tfoot></table>`;
 }
 let smResizeTimer = 0;
+// The card can change height without a window resize (the card beside it grows or the table opens).
+if ('ResizeObserver' in window) {
+  let smRoTimer = 0;
+  const ro = new ResizeObserver(() => {
+    const plot = $('smPlot');
+    if (!plot || !S.loaded || Math.abs(Math.max(230, Math.floor(plot.clientHeight)) - (S.smH || 0)) < 6) return;
+    clearTimeout(smRoTimer); smRoTimer = setTimeout(renderStockChart, 80);
+  });
+  const smHost = document.getElementById('activityChart'); if (smHost) ro.observe(smHost);
+}
 window.addEventListener('resize', () => { clearTimeout(smResizeTimer); smResizeTimer = setTimeout(() => { if (S.loaded) renderStockChart(); }, 200); });
 
 /* ================= On-Hand Stock: Inventory & Reservations ================= */
