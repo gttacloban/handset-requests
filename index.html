@@ -1598,6 +1598,21 @@ body.chat-open .chat-fab{display:none}
 }
 /* Inventory Stock Performance */
 :root{--sm-a:#3b82f6;--sm-i:#0d9488;--sm-r:#ea580c}
+/* Request Status card on wide screens: the card is as tall as the stock chart beside it,
+   so the ring and its legend are stacked and enlarged to fill the card. */
+@media (min-width:921px){
+  .charts-grid .chart-panel{display:flex;flex-direction:column}
+  .charts-grid .chart-panel .status-chart{flex:1;flex-direction:column;justify-content:center;gap:clamp(18px,3vh,34px);min-height:0;padding:10px 0 6px}
+  .charts-grid .chart-panel .donut-chart{width:min(70%,360px);height:auto;aspect-ratio:1;flex:none}
+  .charts-grid .chart-panel .donut-center{inset:19%}
+  .charts-grid .chart-panel .donut-center .donut-count{font-size:clamp(34px,4.2vw,56px)}
+  .charts-grid .chart-panel .donut-center .donut-caption{font-size:clamp(12px,1.2vw,16px);margin-top:6px}
+  .charts-grid .chart-panel .donut-slice-label{font-size:clamp(11px,1.05vw,14px)}
+  .charts-grid .chart-panel .status-legend{flex:none;width:100%;max-width:440px;min-width:0;display:flex;flex-direction:column;gap:clamp(10px,1.6vh,16px)}
+  .charts-grid .chart-panel .legend-row{font-size:clamp(13px,1.1vw,15px);gap:12px}
+  .charts-grid .chart-panel .legend-dot{width:12px;height:12px;flex-basis:12px}
+  .charts-grid .chart-panel .legend-count{font-size:clamp(14px,1.2vw,16px)}
+}
 .sm-range{display:inline-flex;flex:none;gap:2px;padding:3px;border-radius:10px;border:1px solid var(--line)}
 .sm-range button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:800;padding:5px 10px;border-radius:7px;cursor:pointer;white-space:nowrap;min-width:0;width:auto}
 .sm-range button[aria-pressed="true"]{background:var(--accent);color:#fff}
