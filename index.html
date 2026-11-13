@@ -1563,6 +1563,25 @@ body.chat-open .chat-fab{display:none}
 .chat-send{width:40px;height:40px;border-radius:12px;border:0;background:#2f6bff;color:#fff;font-size:16px;cursor:pointer}
 .chat-thread{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}
 .chat-thread:hover{background:rgba(127,140,170,.08)}
+.chat-av.group{background:linear-gradient(135deg,#0d9488,#2563eb);font-size:18px}
+.chat-who{font-size:11.5px;font-weight:700;color:var(--muted);margin:0 4px 2px}
+.chat-who i{font-style:normal;font-weight:800;color:#2f6bff}
+.chat-img{display:block;max-width:230px;max-height:260px;width:auto;height:auto;border-radius:12px;cursor:zoom-in;background:rgba(127,140,170,.2);object-fit:cover}
+.chat-img.loading{width:180px;height:130px;cursor:progress;animation:chatImgPulse 1.2s ease-in-out infinite}
+.chat-img.failed{width:180px;height:60px;cursor:pointer}
+@keyframes chatImgPulse{50%{opacity:.5}}
+.chat-bubble.has-img{padding:4px}
+.chat-bubble.has-img .chat-cap{display:block;padding:6px 8px 4px}
+.chat-attach{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:transparent;color:inherit;font-size:18px;cursor:pointer;flex:none}
+.chat-preview{display:flex;align-items:center;gap:10px;padding:8px 10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.chat-preview[hidden]{display:none}
+.chat-preview img{width:54px;height:54px;object-fit:cover;border-radius:10px}
+.chat-preview span{flex:1;min-width:0}
+.chat-preview button{width:30px;height:30px;border-radius:10px;border:1px solid var(--line);background:transparent;color:inherit;cursor:pointer}
+.chat-viewer{position:fixed;inset:0;z-index:200;background:rgba(5,10,25,.92);display:grid;place-items:center;padding:16px;cursor:zoom-out}
+.chat-viewer[hidden]{display:none}
+.chat-viewer img{max-width:100%;max-height:100%;border-radius:10px}
+.chat-viewer button{position:absolute;top:max(14px,env(safe-area-inset-top,0px));right:14px;width:40px;height:40px;border-radius:12px;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:18px;cursor:pointer}
 .chat-av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2f6bff,#7c3aed);color:#fff;font-weight:800;flex:none}
 .chat-tmain{flex:1;min-width:0;display:flex;flex-direction:column}
 .chat-tmain span{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2073,11 +2092,15 @@ body.chat-open .chat-fab{display:none}
     <button type="button" class="chat-ico" onclick="toggleChat(false)" aria-label="Close chat">✕</button>
   </header>
   <div class="chat-body" id="chatBody"></div>
+  <div class="chat-preview" id="chatPreview" hidden><img id="chatPreviewImg" alt=""><span>Picture ready to send. Add a caption if you like.</span><button type="button" onclick="clearChatImage()" aria-label="Remove picture">✕</button></div>
   <form class="chat-input" id="chatForm" onsubmit="sendChat(event)">
+    <input type="file" id="chatFile" accept="image/*" hidden onchange="pickChatImage(this)">
+    <button type="button" class="chat-attach" onclick="$('chatFile').click()" aria-label="Send a picture" title="Send a picture" onpointerdown="event.preventDefault()">📷</button>
     <textarea id="chatText" rows="1" maxlength="1000" placeholder="Type a message…" aria-label="Message"></textarea>
     <button type="submit" class="chat-send" aria-label="Send" onpointerdown="event.preventDefault()" onmousedown="event.preventDefault()" ontouchstart="">➤</button>
   </form>
 </aside>
+<div class="chat-viewer" id="chatViewer" hidden onclick="closeChatImage()"><button type="button" aria-label="Close picture">✕</button><img id="chatViewerImg" alt="Chat picture"></div>
 
 <div class="modal" id="usersModal" onclick="if(event.target===this)closeUsers()">
   <div class="box">
@@ -4012,24 +4035,41 @@ function toggleChatSound() {
   toast(chatSoundOn ? 'Message sound on' : 'Message sound off');
 }
 
-/* ================= Chat: Seller <-> Admin ================= */
+/* ================= Chat: Team Group + Seller <-> Admin ================= */
 S.chat = S.chat || { rev: '0', messages: [] };
-S.chatThread = '';
+S.chatThread = '';            // '' = list of chats, 'group' = team group, or a seller's email
+const CHAT_GROUP = 'group';
 const myEmail = () => String((S.user && S.user.email) || '').toLowerCase();
 const chatMsgs = () => (S.chat && S.chat.messages) || [];
-// Unread = messages from the other side that this user has not opened yet.
-const isUnread = m => S.admin ? (m.role === 'Seller' && !m.readByAdmin) : (m.role === 'Admin' && !m.readBySeller);
+const isGroupMsg = m => m.thread === CHAT_GROUP;
+const isMine = m => isGroupMsg(m) ? String(m.from).toLowerCase() === myEmail() : (S.admin ? m.role === 'Admin' : m.role === 'Seller');
+// The group has no "Seen": each device remembers the time it last opened the group.
+const groupSeenKey = () => 'irm_group_seen_' + myEmail();
+function groupSeen() { try { return Number(localStorage.getItem(groupSeenKey())) || 0; } catch (e) { return S.groupSeenMem || 0; } }
+function setGroupSeen(t) { S.groupSeenMem = t; try { localStorage.setItem(groupSeenKey(), String(t)); } catch (e) {} }
+// Unread = messages from someone else that this user has not opened yet.
+const isUnread = m => isGroupMsg(m) ? (!isMine(m) && !m.pending && m.time > groupSeen())
+  : (S.admin ? (m.role === 'Seller' && !m.readByAdmin) : (m.role === 'Admin' && !m.readBySeller));
+const chatPreviewText = m => (m.text || (m.image || m.imageData ? '📷 Photo' : ''));
+// Chats this user can open: the team group first, then the private chats.
 function chatThreads() {
   const people = {};
-  (S.users || []).filter(u => u.role === 'Seller').forEach(u => { people[u.email] = { email: u.email, name: u.name, last: null, unread: 0 }; });
+  if (S.admin) (S.users || []).filter(u => u.role === 'Seller').forEach(u => { people[u.email] = { email: u.email, name: u.name, last: null, unread: 0 }; });
+  else people[myEmail()] = { email: myEmail(), name: 'Admin', sub: 'Private chat', last: null, unread: 0 };
+  const group = { email: CHAT_GROUP, name: 'Team Group', group: true, last: null, unread: 0 };
   chatMsgs().forEach(m => {
-    const t = people[m.thread] || (people[m.thread] = { email: m.thread, name: m.role === 'Seller' ? m.name : m.thread, last: null, unread: 0 });
-    if (m.role === 'Seller') t.name = t.name || m.name;
+    let t;
+    if (isGroupMsg(m)) t = group;
+    else if (!S.admin && m.thread !== myEmail()) return;   // a seller only has the group and their own chat
+    else {
+      t = people[m.thread] || (people[m.thread] = { email: m.thread, name: m.role === 'Seller' ? m.name : m.thread, last: null, unread: 0 });
+      if (S.admin && m.role === 'Seller') t.name = t.name || m.name;
+    }
     if (!t.last || m.time > t.last.time) t.last = m;
     if (isUnread(m)) t.unread++;
   });
-  return Object.values(people).sort((a, b) => (b.unread ? 1 : 0) - (a.unread ? 1 : 0) ||
-    (b.last ? b.last.time : 0) - (a.last ? a.last.time : 0) || a.name.localeCompare(b.name));
+  return [group].concat(Object.values(people).sort((a, b) => (b.unread ? 1 : 0) - (a.unread ? 1 : 0) ||
+    (b.last ? b.last.time : 0) - (a.last ? a.last.time : 0) || a.name.localeCompare(b.name)));
 }
 function chatBadge() {
   const n = chatMsgs().filter(isUnread).length;
@@ -4043,40 +4083,152 @@ function chatTime(t) {
   return d.toLocaleString('en-US', same ? { timeZone: PH_TZ, hour: '2-digit', minute: '2-digit' }
     : { timeZone: PH_TZ, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+
+/* ----- Chat pictures: loaded once per device, only when they scroll into view ----- */
+const chatImgCache = new Map();      // file id -> data URL
+const chatImgWaiting = new Map();    // file id -> promise
+let chatImgDb = null;
+try {
+  const rq = indexedDB.open('irm_chat_images', 1);
+  rq.onupgradeneeded = () => rq.result.createObjectStore('img');
+  rq.onsuccess = () => { chatImgDb = rq.result; };
+} catch (e) {}
+function chatImgStored(id) {
+  return new Promise(resolve => {
+    if (!chatImgDb) return resolve('');
+    try {
+      const q = chatImgDb.transaction('img').objectStore('img').get(id);
+      q.onsuccess = () => resolve(q.result || ''); q.onerror = () => resolve('');
+    } catch (e) { resolve(''); }
+  });
+}
+function chatImgKeep(id, data) {
+  chatImgCache.set(id, data);
+  try { if (chatImgDb) chatImgDb.transaction('img', 'readwrite').objectStore('img').put(data, id); } catch (e) {}
+}
+function chatImgGet(id) {
+  if (chatImgCache.has(id)) return Promise.resolve(chatImgCache.get(id));
+  if (chatImgWaiting.has(id)) return chatImgWaiting.get(id);
+  const p = chatImgStored(id).then(hit => {
+    if (hit) { chatImgCache.set(id, hit); return hit; }
+    return api('chatImage', { id: id }).then(res => { chatImgKeep(id, res.data); return res.data; });
+  }).finally(() => chatImgWaiting.delete(id));
+  chatImgWaiting.set(id, p);
+  return p;
+}
+function chatImgLoad(img) {
+  const id = img.dataset.img;
+  if (!id || img.dataset.state === 'busy') return;
+  img.dataset.state = 'busy'; img.classList.remove('failed'); img.classList.add('loading'); img.alt = 'Loading picture…';
+  chatImgGet(id).then(data => {
+    document.querySelectorAll('img.chat-img[data-img="' + id + '"]').forEach(el => { el.src = data; el.classList.remove('loading', 'failed'); el.alt = 'Picture'; el.dataset.state = 'done'; });
+  }).catch(() => { img.dataset.state = ''; img.classList.remove('loading'); img.classList.add('failed'); img.alt = 'Picture could not be loaded. Tap to try again.'; });
+}
+const chatImgWatch = ('IntersectionObserver' in window) ? new IntersectionObserver(list => {
+  list.forEach(en => { if (en.isIntersecting) { chatImgWatch.unobserve(en.target); chatImgLoad(en.target); } });
+}, { rootMargin: '200px' }) : null;
+function chatImgTag(m) {
+  if (m.imageData) return `<img class="chat-img" src="${m.imageData}" alt="Picture" onclick="openChatImage(this)">`;
+  if (!m.image) return '';
+  const hit = chatImgCache.get(m.image);
+  return hit ? `<img class="chat-img" src="${hit}" data-img="${esc(m.image)}" data-state="done" alt="Picture" onclick="openChatImage(this)">`
+    : `<img class="chat-img loading" data-img="${esc(m.image)}" alt="Loading picture…" onclick="openChatImage(this)">`;
+}
+function openChatImage(img) {
+  if (img.classList.contains('failed')) return chatImgLoad(img);
+  if (!img.src || img.classList.contains('loading')) return;
+  $('chatViewerImg').src = img.src; $('chatViewer').hidden = false;
+}
+function closeChatImage() { $('chatViewer').hidden = true; $('chatViewerImg').removeAttribute('src'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('chatViewer') && !$('chatViewer').hidden) closeChatImage(); });
+// Picture chosen to send: made smaller in the browser (longest side 1280 px, JPEG).
+let chatPick = null;
+function pickChatImage(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!/^image\//.test(file.type)) return toast('Please choose a picture', true);
+  const url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    try {
+      let dataUrl = '';
+      for (const [side, q] of [[1280, 0.72], [1024, 0.6], [800, 0.5]]) {
+        const k = Math.min(1, side / Math.max(im.naturalWidth, im.naturalHeight));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+        dataUrl = c.toDataURL('image/jpeg', q);
+        if (dataUrl.length < 700000) break;
+      }
+      chatPick = dataUrl;
+      $('chatPreviewImg').src = dataUrl; $('chatPreview').hidden = false;
+      fitChat(); $('chatText').focus();
+    } catch (e) { toast('This picture could not be prepared', true); }
+    URL.revokeObjectURL(url);
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); toast('This picture could not be opened', true); };
+  im.src = url;
+}
+function clearChatImage() { chatPick = null; $('chatPreview').hidden = true; $('chatPreviewImg').removeAttribute('src'); fitChat(); }
+
 function renderChat() {
   if (!$('chatFab')) return;
   $('chatFab').hidden = !S.loaded || !S.user;
   chatBadge();
   if ($('chatPanel').hidden) return;
-  const listMode = S.admin && !S.chatThread;
-  $('chatBack').hidden = !S.admin || listMode;
+  const listMode = !S.chatThread;
+  const typing = S.chatTypingNow || [], gTyping = S.chatGroupTyping || [];
+  $('chatBack').hidden = listMode;
   $('chatClearBtn').hidden = !S.admin || listMode || !chatMsgs().some(m => m.thread === S.chatThread && !m.pending);
   $('chatForm').hidden = listMode;
+  if (listMode) $('chatPreview').hidden = true; else $('chatPreview').hidden = !chatPick;
   if (listMode) {
     const threads = chatThreads();
     $('chatTitle').textContent = 'Chats';
-    $('chatSub').textContent = 'Messages from your sellers';
-    $('chatBody').innerHTML = threads.length ? threads.map(t => `<button type="button" class="chat-thread" onclick="openThread('${esc(t.email)}')">
-        <span class="chat-av">${esc((t.name || '?').slice(0, 1).toUpperCase())}</span>
-        <span class="chat-tmain"><b>${esc(t.name)}</b><span>${(S.chatTypingNow || []).includes(t.email) ? '<em class="chat-typing">typing…</em>' : t.last ? esc((t.last.role === 'Admin' ? 'You: ' : '') + t.last.text) : 'No messages yet'}</span></span>
-        <span class="chat-tside">${t.last ? esc(chatTime(t.last.time)) : ''}${t.unread ? `<i>${t.unread}</i>` : ''}</span></button>`).join('')
-      : '<div class="chat-empty">No sellers yet.</div>';
+    $('chatSub').textContent = S.admin ? 'Team group and your sellers' : 'Team group and your chat with the Admin';
+    $('chatBody').innerHTML = threads.map(t => {
+      const isTyping = t.group ? gTyping.length : typing.includes(t.email);
+      const who = t.last ? (isMine(t.last) ? 'You: ' : t.group ? t.last.name + ': ' : '') : '';
+      return `<button type="button" class="chat-thread" onclick="openThread('${esc(t.email)}')">
+        <span class="chat-av${t.group ? ' group' : ''}">${t.group ? '👥' : esc((t.name || '?').slice(0, 1).toUpperCase())}</span>
+        <span class="chat-tmain"><b>${esc(t.name)}</b><span>${isTyping ? `<em class="chat-typing">${t.group ? esc(gTyping[0]) + ' is typing…' : 'typing…'}</em>` : t.last ? esc(who + chatPreviewText(t.last)) : (t.group ? 'Everyone can write here' : 'No messages yet')}</span></span>
+        <span class="chat-tside">${t.last ? esc(chatTime(t.last.time)) : ''}${t.unread ? `<i>${t.unread}</i>` : ''}</span></button>`;
+    }).join('');
     return;
   }
-  const thread = S.admin ? S.chatThread : myEmail();
-  const t = S.admin ? chatThreads().find(x => x.email === thread) : null;
-  $('chatTitle').textContent = S.admin ? (t ? t.name : thread) : 'Chat with Admin';
-  $('chatSub').textContent = S.admin ? thread : 'Questions only. Requests must still be encoded in the portal.';
+  const thread = S.chatThread;
+  const isGroup = thread === CHAT_GROUP;
+  const t = chatThreads().find(x => x.email === thread);
+  const members = 1 + (S.users || []).filter(u => u.role === 'Seller').length;
+  $('chatTitle').textContent = isGroup ? 'Team Group' : S.admin ? (t ? t.name : thread) : 'Chat with Admin';
+  $('chatSub').textContent = isGroup ? (S.admin ? `Admin and ${members - 1} seller(s) · everyone sees these messages` : 'Admin and all sellers · everyone sees these messages')
+    : S.admin ? thread : 'Private. Requests must still be encoded in the portal.';
   const list = chatMsgs().filter(m => m.thread === thread).sort((a, b) => a.time - b.time);
-  const mine = m => S.admin ? m.role === 'Admin' : m.role === 'Seller';
   const body = $('chatBody');
   const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 60;
-  body.innerHTML = list.length ? list.map(m => `<div class="chat-msg ${mine(m) ? 'me' : 'them'}${m.pending ? ' pending' : ''}">
-      <div class="chat-bubble">${esc(m.text).replace(/\n/g, '<br>')}</div>
-      <div class="chat-meta">${mine(m) ? '' : esc(m.name) + ' · '}${m.pending ? 'Sending…' : esc(chatTime(m.time))}${mine(m) && !m.pending && (S.admin ? m.readBySeller : m.readByAdmin) ? ' · Seen' : ''}</div></div>`).join('')
-    : `<div class="chat-empty">${S.admin ? 'No messages with this seller yet.' : 'Send a message to the Admin.'}</div>`;
-  if ((S.chatTypingNow || []).includes(thread)) body.innerHTML += `<div class="chat-msg them"><div class="chat-bubble chat-dots" aria-label="typing"><i></i><i></i><i></i></div><div class="chat-meta">${S.admin ? esc(t ? t.name : 'Seller') : 'Admin'} is typing…</div></div>`;
-  if (atBottom || S.chatScroll) { body.scrollTop = body.scrollHeight; S.chatScroll = false; }
+  body.innerHTML = list.length ? list.map((m, i) => {
+    const mine = isMine(m), pic = chatImgTag(m);
+    const showWho = isGroup && !mine && (i === 0 || list[i - 1].from !== m.from);
+    return `<div class="chat-msg ${mine ? 'me' : 'them'}${m.pending ? ' pending' : ''}">
+      ${showWho ? `<div class="chat-who">${esc(m.name)}${m.role === 'Admin' ? ' · <i>Admin</i>' : ''}</div>` : ''}
+      <div class="chat-bubble${pic ? ' has-img' : ''}">${pic}${m.text ? (pic ? '<span class="chat-cap">' : '') + esc(m.text).replace(/\n/g, '<br>') + (pic ? '</span>' : '') : ''}</div>
+      <div class="chat-meta">${mine || isGroup ? '' : esc(m.name) + ' · '}${m.pending ? 'Sending…' : esc(chatTime(m.time))}${!isGroup && mine && !m.pending && (S.admin ? m.readBySeller : m.readByAdmin) ? ' · Seen' : ''}</div></div>`;
+  }).join('')
+    : `<div class="chat-empty">${isGroup ? 'No messages in the group yet. Say hello to the team.' : S.admin ? 'No messages with this seller yet.' : 'Send a message to the Admin.'}</div>`;
+  const dots = name => `<div class="chat-msg them"><div class="chat-bubble chat-dots" aria-label="typing"><i></i><i></i><i></i></div><div class="chat-meta">${esc(name)} typing…</div></div>`;
+  if (isGroup ? gTyping.length : typing.includes(thread)) {
+    body.innerHTML += dots(isGroup ? (gTyping.length > 1 ? gTyping.slice(0, 2).join(', ') + (gTyping.length > 2 ? ' and others are' : ' are') : gTyping[0] + ' is')
+      : (S.admin ? (t ? t.name : 'Seller') : 'Admin') + ' is');
+  }
+  body.querySelectorAll('img.chat-img.loading').forEach(img => { if (chatImgWatch) chatImgWatch.observe(img); else chatImgLoad(img); });
+  if (atBottom || S.chatScroll) {
+    body.scrollTop = body.scrollHeight; S.chatScroll = false;
+    // pictures change the height after they load: stay at the bottom
+    body.querySelectorAll('img.chat-img').forEach(img => img.addEventListener('load', () => {
+      if (body.scrollHeight - body.scrollTop - body.clientHeight < 400) body.scrollTop = body.scrollHeight;
+    }, { once: true }));
+  }
   markThreadRead(thread);
 }
 /* Phone: keep the chat exactly inside the visible area above the keyboard, so the
@@ -4108,18 +4260,29 @@ function toggleChat(open) {
 function clearChatThread() {
   const thread = S.chatThread;
   if (!S.admin || !thread) return;
+  const isGroup = thread === CHAT_GROUP;
   const t = chatThreads().find(x => x.email === thread);
   const n = chatMsgs().filter(m => m.thread === thread).length;
   if (!n) return;
-  if (!confirm(`Clear the chat with ${t ? t.name : thread}?\n\n${n} message(s) will be deleted for both of you. This cannot be undone.`)) return;
+  if (!confirm(isGroup ? `Clear the Team Group?\n\n${n} message(s) and their pictures will be deleted for everyone. This cannot be undone.`
+    : `Clear the chat with ${t ? t.name : thread}?\n\n${n} message(s) and their pictures will be deleted for both of you. This cannot be undone.`)) return;
   const backup = chatMsgs().slice();
   S.chat.messages = chatMsgs().filter(m => m.thread !== thread);
   renderChat();
   api('chatClear', { thread: thread }).then(res => { S.chat.rev = res.rev; toast(`Chat cleared · ${res.removed} message(s) deleted`); })
     .catch(err => { S.chat.messages = backup; renderChat(); toast(err.message, true); });
 }
-function openThread(email) { S.chatThread = email; S.chatScroll = true; renderChat(); if (email) setTimeout(() => $('chatText').focus(), 50); }
+function openThread(email) {
+  if (!email || email !== S.chatThread) clearChatImage();
+  S.chatThread = email; S.chatScroll = true; renderChat();
+  if (email) setTimeout(() => $('chatText').focus(), 50);
+}
 function markThreadRead(thread) {
+  if (thread === CHAT_GROUP) {
+    const newest = chatMsgs().filter(m => isGroupMsg(m) && !m.pending).reduce((a, m) => Math.max(a, m.time), 0);
+    if (newest > groupSeen()) { setGroupSeen(newest); chatBadge(); }
+    return;
+  }
   const unread = chatMsgs().filter(m => m.thread === thread && isUnread(m));
   if (!unread.length || S.chatReading) return;
   const now = Date.now();
@@ -4131,20 +4294,30 @@ function markThreadRead(thread) {
 function sendChat(e) {
   e.preventDefault();
   const text = $('chatText').value.trim();
-  if (!text) return;
-  const thread = S.admin ? S.chatThread : myEmail();
+  const picture = chatPick;
+  if (!text && !picture) return;
+  const thread = S.chatThread;
   if (!thread) return;
   const tmp = { id: 'tmp-' + Date.now(), time: Date.now(), thread: thread, from: myEmail(), name: S.user.name,
-    role: S.admin ? 'Admin' : 'Seller', text: text, pending: true, readByAdmin: S.admin ? Date.now() : 0, readBySeller: S.admin ? 0 : Date.now() };
+    role: S.admin ? 'Admin' : 'Seller', text: text, image: '', imageData: picture || '', pending: true,
+    readByAdmin: S.admin ? Date.now() : 0, readBySeller: S.admin ? 0 : Date.now() };
   S.chat.messages = chatMsgs().concat([tmp]);
   $('chatText').value = ''; $('chatText').style.height = '';
+  clearChatImage();
   $('chatText').focus();   // keep the keyboard open for the next message
   S.chatScroll = true; renderChat();
-  api('chatSend', { text: text, thread: thread }).then(m => {
-    S.chat.messages = chatMsgs().map(x => x.id === tmp.id ? m : x); renderChat();
+  const body = { text: text, thread: thread };
+  if (picture) body.image = { type: 'image/jpeg', data: picture.slice(picture.indexOf(',') + 1) };
+  api('chatSend', body).then(m => {
+    if (m.image && picture) chatImgKeep(m.image, picture);   // no need to download our own picture
+    S.chat.messages = chatMsgs().map(x => x.id === tmp.id ? m : x);
+    if (thread === CHAT_GROUP && m.time > groupSeen()) setGroupSeen(m.time);
+    renderChat();
   }).catch(err => {
     S.chat.messages = chatMsgs().filter(x => x.id !== tmp.id); renderChat();
-    $('chatText').value = text; toast(err.message, true);
+    $('chatText').value = text;
+    if (picture && !chatPick) { chatPick = picture; $('chatPreviewImg').src = picture; $('chatPreview').hidden = !S.chatThread; }
+    toast(err.message, true);
   });
 }
 // Enter sends, Shift+Enter makes a new line; the box grows with the text.
@@ -4154,6 +4327,21 @@ document.addEventListener('keydown', e => {
 document.addEventListener('input', e => {
   if (e.target && e.target.id === 'chatText') { e.target.style.height = 'auto'; e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px'; }
 });
+// A pasted picture (computer) is attached the same way as a chosen one.
+document.addEventListener('paste', e => {
+  if (!e.target || e.target.id !== 'chatText' || !e.clipboardData) return;
+  const f = Array.from(e.clipboardData.files || []).find(x => /^image\//.test(x.type));
+  if (!f) return;
+  e.preventDefault();
+  pickChatImage({ files: [f], value: '' });
+});
+// What to announce after new messages arrive: only other people's messages.
+function chatAnnounce(messages, before, viewing) {
+  const incoming = (messages || []).filter(m => !before.has(m.id) && !isMine(m) &&
+    (isGroupMsg(m) || (S.admin ? m.role === 'Seller' : m.role === 'Admin')));
+  incoming.filter(m => m.thread !== viewing).slice(-1).forEach(m => toast(`💬 ${isGroupMsg(m) ? 'Team Group · ' : 'New message from '}${m.name}`));
+  if (incoming.length) playChatSound();
+}
 // New messages: check a small counter every 6 seconds, fetch messages only when it changes.
 function chatSync() {
   if (!S.loaded || !S.user || document.hidden || /PASTE_/.test(CONFIG.API_URL) || S.chatFetching || !tokenValid()) return;
@@ -4162,45 +4350,39 @@ function chatSync() {
     S.chatFetching = true;
     const before = new Set(chatMsgs().map(m => m.id));
     return api('chatPoll').then(res => {
-      const fresh = (res.messages || []).filter(m => !before.has(m.id) && isUnread(m));
       // keep messages still being sent
       const pending = chatMsgs().filter(m => m.pending);
       S.chat = { rev: res.rev, messages: (res.messages || []).concat(pending) };
       renderChat();
-      const viewing = !$('chatPanel').hidden && (S.admin ? S.chatThread : myEmail());
-      fresh.filter(m => m.thread !== viewing).slice(-1).forEach(m => toast(`💬 New message from ${m.name}`));
-      if (fresh.length) playChatSound();
+      chatAnnounce(res.messages, before, !$('chatPanel').hidden && S.chatThread);
     }).finally(() => { S.chatFetching = false; });
   }).catch(() => {});
 }
 setInterval(() => { if ($('chatPanel').hidden) chatSync(); }, 6000);
-// While the chat is open: one quick call every 1.5 seconds (no sheet read when nothing changed).
+// While the chat is open: one quick call every second (no sheet read when nothing changed).
 function chatFast() {
   if ($('chatPanel').hidden || !S.loaded || !S.user || document.hidden || S.chatFetching || !tokenValid()) return;
   S.chatFetching = true;
   const before = new Set(chatMsgs().map(m => m.id));
   const threads = S.admin ? (S.users || []).filter(u => u.role === 'Seller').map(u => u.email) : undefined;
   api('chatPoll', { rev: S.chat.rev, threads: threads }).then(res => {
-    const wasTyping = JSON.stringify(S.chatTypingNow || []);
+    const wasTyping = JSON.stringify([S.chatTypingNow || [], S.chatGroupTyping || []]);
     S.chatTypingNow = res.typing || [];
-    if (res.same) { if (wasTyping !== JSON.stringify(S.chatTypingNow)) renderChat(); return; }
+    S.chatGroupTyping = res.groupTyping || [];
+    if (res.same) { if (wasTyping !== JSON.stringify([S.chatTypingNow, S.chatGroupTyping])) renderChat(); return; }
     const pending = chatMsgs().filter(m => m.pending);
     S.chat = { rev: res.rev, messages: (res.messages || []).concat(pending) };
     renderChat();
-    const viewing = S.admin ? S.chatThread : myEmail();
-    const incoming = (res.messages || []).filter(m => !before.has(m.id) && m.from !== myEmail() &&
-      (S.admin ? m.role === 'Seller' : m.role === 'Admin'));
-    incoming.filter(m => m.thread !== viewing).slice(-1).forEach(m => toast(`💬 New message from ${m.name}`));
-    if (incoming.length) playChatSound();
+    chatAnnounce(res.messages, before, S.chatThread);
   }).catch(() => {}).finally(() => { S.chatFetching = false; });
 }
 setInterval(chatFast, 1000);
-// Tell the other side "typing…" (at most once every 3 seconds).
+// Tell the others "typing…" (at most once every 2.5 seconds).
 let chatTypingSent = 0;
 document.addEventListener('input', e => {
   if (!e.target || e.target.id !== 'chatText' || !e.target.value.trim()) return;
   if (Date.now() - chatTypingSent < 2500) return;
-  const thread = S.admin ? S.chatThread : myEmail();
+  const thread = S.chatThread;
   if (!thread) return;
   chatTypingSent = Date.now();
   api('chatTyping', { thread: thread }).catch(() => {});
@@ -4636,7 +4818,7 @@ let SYNC_REV = null;
   const base = api;
   api = function (a, p, r) {
     // Chat calls are frequent background reads: they must not hold back the dashboard refresh.
-    if (/^chat(Poll|Typing|Read)$/.test(a)) return base(a, p, r);
+    if (/^chat(Poll|Typing|Read|Image)$/.test(a)) return base(a, p, r);
     S.apiBusy = (S.apiBusy || 0) + 1;
     return Promise.resolve(base(a, p, r)).finally(() => { S.apiBusy--; });
   };
