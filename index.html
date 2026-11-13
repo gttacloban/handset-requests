@@ -4421,7 +4421,7 @@ document.addEventListener('paste', e => {
 function chatAnnounce(messages, before, viewing) {
   const incoming = (messages || []).filter(m => !before.has(m.id) && !isMine(m) &&
     (isGroupMsg(m) || (S.admin ? m.role === 'Seller' : m.role === 'Admin')));
-  incoming.filter(m => m.thread !== viewing).slice(-1).forEach(m => toast(`💬 ${isGroupMsg(m) ? 'Team Group · ' : 'New message from '}${m.name}`));
+  incoming.filter(m => m.thread !== viewing).slice(-1).forEach(m => { toast(`💬 ${isGroupMsg(m) ? 'Team Group · ' : 'New message from '}${m.name}`); pageNotify(m); });
   if (incoming.length) playChatSound();
 }
 // New messages: check a small counter every 6 seconds, fetch messages only when it changes.
@@ -4534,6 +4534,18 @@ function disablePush() {
     return sub.unsubscribe().catch(() => {}).then(() => api('pushUnsubscribe', { endpoint: endpoint }));
   }).then(() => toast('Chat notifications are off for this device')).catch(() => {})
     .finally(() => { S.pushBusy = false; renderChat(); });
+}
+// The portal is open on screen: show the system notification from the page itself
+// (the service worker stays quiet then). Here the sender and the text are known.
+function pageNotify(m) {
+  try {
+    if (document.hidden || pushState() !== 'on') return;
+    navigator.serviceWorker.ready.then(reg => reg.showNotification(isGroupMsg(m) ? 'Team Group · ' + m.name : m.name + (m.role === 'Admin' ? ' (Admin)' : ''), {
+      body: (chatPreviewText(m) || 'New chat message').slice(0, 140),
+      icon: './icon-192.png', badge: './icon-192.png', tag: 'irm-chat', renotify: true,
+      data: { url: location.origin + location.pathname + '?chat=1' }
+    })).catch(() => {});
+  } catch (e) {}
 }
 // After signing in on a device where this user turned notifications on: make sure the server still has it.
 function pushSync() {
